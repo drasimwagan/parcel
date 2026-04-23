@@ -8,6 +8,7 @@ __all__ = [
     "SIDEBAR",
     "SidebarItem",
     "SidebarSection",
+    "active_href",
     "composed_sections",
     "sidebar_for",
     "visible_sections",
@@ -68,3 +69,30 @@ def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:
     """Convenience: compose the sidebar using the live app state."""
     module_sections = getattr(request.app.state, "active_modules_sidebar", None)
     return composed_sections(perms, module_sections)
+
+
+def active_href(path: str, sections: list[SidebarSection]) -> str | None:
+    """Pick the single sidebar item href that should be highlighted for ``path``.
+
+    Longest-prefix wins — on ``/mod/contacts/companies`` the "Companies"
+    item (``/mod/contacts/companies``) wins over "Contacts" (``/mod/contacts/``).
+
+    Trailing slashes are normalised on both sides so ``/mod/contacts`` and
+    ``/mod/contacts/`` are treated as the same location.
+    """
+    norm_path = path.rstrip("/") or "/"
+    best: str | None = None
+    best_len = -1
+    for section in sections:
+        for item in section.items:
+            norm_href = item.href.rstrip("/") or "/"
+            if norm_href == norm_path:
+                return item.href
+            prefix = norm_href + "/" if norm_href != "/" else "/"
+            # Skip root item "/" from prefix matching so it doesn't catch everything.
+            if norm_href == "/":
+                continue
+            if (norm_path + "/").startswith(prefix) and len(norm_href) > best_len:
+                best = item.href
+                best_len = len(norm_href)
+    return best

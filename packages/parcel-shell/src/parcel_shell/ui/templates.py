@@ -17,6 +17,10 @@ def get_templates() -> Jinja2Templates:
     tpl = Jinja2Templates(directory=str(_SHELL_TEMPLATES_DIR))
     # Swap in a ChoiceLoader so we can prepend module template dirs at runtime.
     tpl.env.loader = jinja2.ChoiceLoader([jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR))])
+    # Expose active_href() so templates can pick the single sidebar item to highlight.
+    from parcel_shell.ui.sidebar import active_href
+
+    tpl.env.globals["active_href"] = active_href
     return tpl
 
 
