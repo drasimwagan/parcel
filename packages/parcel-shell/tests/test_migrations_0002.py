@@ -65,9 +65,7 @@ async def test_0002_seeds_admin_role_with_all_shell_permissions(
     }
 
 
-async def test_0002_downgrade_removes_tables(
-    database_url: str, engine: AsyncEngine
-) -> None:
+async def test_0002_downgrade_removes_tables(database_url: str, engine: AsyncEngine) -> None:
     cfg = _cfg(database_url)
     await asyncio.to_thread(command.upgrade, cfg, "head")
     await asyncio.to_thread(command.downgrade, cfg, "0001")
@@ -76,8 +74,7 @@ async def test_0002_downgrade_removes_tables(
         rows = (
             await conn.execute(
                 text(
-                    "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'shell'"
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'shell'"
                 )
             )
         ).all()

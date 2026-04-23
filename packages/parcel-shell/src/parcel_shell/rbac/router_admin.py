@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import and_, select
@@ -52,6 +52,7 @@ def _role_detail(role) -> RoleDetailResponse:
 
 
 # ── Users ───────────────────────────────────────────────────────────────
+
 
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
@@ -164,6 +165,7 @@ async def unassign_role(
 
 # ── Roles ───────────────────────────────────────────────────────────────
 
+
 @router.get("/roles", response_model=list[RoleDetailResponse])
 async def list_roles(
     _: object = Depends(require_permission("roles.read")),
@@ -207,8 +209,8 @@ async def patch_role(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "role_not_found")
     try:
         await service.update_role(db, r, name=payload.name, description=payload.description)
-    except service.BuiltinRoleError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "builtin_role_protected")
+    except service.BuiltinRoleError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "builtin_role_protected") from e
     await db.refresh(r, ["permissions"])
     return _role_detail(r)
 
@@ -224,8 +226,8 @@ async def delete_role(
         return Response(status_code=204)
     try:
         await service.delete_role(db, r)
-    except service.BuiltinRoleError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "builtin_role_protected")
+    except service.BuiltinRoleError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "builtin_role_protected") from e
     return Response(status_code=204)
 
 
@@ -240,11 +242,9 @@ async def assign_permission(
     if r is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "role_not_found")
     try:
-        await service.assign_permission_to_role(
-            db, role=r, permission_name=payload.permission_name
-        )
-    except service.PermissionNotRegistered:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "permission_not_found")
+        await service.assign_permission_to_role(db, role=r, permission_name=payload.permission_name)
+    except service.PermissionNotRegistered as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "permission_not_found") from e
     return Response(status_code=204)
 
 
@@ -264,6 +264,7 @@ async def unassign_permission(
 
 # ── Permissions ─────────────────────────────────────────────────────────
 
+
 @router.get("/permissions", response_model=list[PermissionResponse])
 async def list_permissions(
     _: object = Depends(require_permission("permissions.read")),
@@ -271,12 +272,12 @@ async def list_permissions(
 ) -> list[PermissionResponse]:
     rows = await service.list_permissions(db)
     return [
-        PermissionResponse(name=p.name, description=p.description, module=p.module)
-        for p in rows
+        PermissionResponse(name=p.name, description=p.description, module=p.module) for p in rows
     ]
 
 
 # ── Sessions ────────────────────────────────────────────────────────────
+
 
 @router.get("/users/{user_id}/sessions", response_model=list[SessionResponse])
 async def list_user_sessions(
@@ -284,20 +285,24 @@ async def list_user_sessions(
     _: object = Depends(require_permission("sessions.read")),
     db: AsyncSession = Depends(get_session),
 ) -> list[SessionResponse]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = (
-        await db.execute(
-            select(DbSession)
-            .where(
-                and_(
-                    DbSession.user_id == user_id,
-                    DbSession.revoked_at.is_(None),
-                    DbSession.expires_at > now,
+        (
+            await db.execute(
+                select(DbSession)
+                .where(
+                    and_(
+                        DbSession.user_id == user_id,
+                        DbSession.revoked_at.is_(None),
+                        DbSession.expires_at > now,
+                    )
                 )
+                .order_by(DbSession.last_seen_at.desc())
             )
-            .order_by(DbSession.last_seen_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [
         SessionResponse(
             id=s.id,

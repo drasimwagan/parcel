@@ -21,9 +21,7 @@ async def test_login_bad_password_is_401(client: AsyncClient, user_factory) -> N
 
 async def test_login_inactive_user_is_401(client: AsyncClient, user_factory) -> None:
     await user_factory(email="off@x.com", password="password-1234", is_active=False)
-    r = await client.post(
-        "/auth/login", json={"email": "off@x.com", "password": "password-1234"}
-    )
+    r = await client.post("/auth/login", json={"email": "off@x.com", "password": "password-1234"})
     assert r.status_code == 401
 
 
@@ -58,9 +56,7 @@ async def test_logout_clears_cookie_and_invalidates_session(
     assert r2.status_code == 401
 
 
-async def test_change_password_wrong_current_is_400(
-    client: AsyncClient, user_factory
-) -> None:
+async def test_change_password_wrong_current_is_400(client: AsyncClient, user_factory) -> None:
     await user_factory(email="ok@x.com", password="password-1234")
     await client.post("/auth/login", json={"email": "ok@x.com", "password": "password-1234"})
     r = await client.post(

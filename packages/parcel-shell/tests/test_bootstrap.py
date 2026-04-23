@@ -9,9 +9,7 @@ from parcel_shell.bootstrap import create_admin_user
 async def test_create_admin_creates_user_and_assigns_admin_role(
     db_session: AsyncSession,
 ) -> None:
-    u = await create_admin_user(
-        db_session, email="root@x.com", password="password-1234"
-    )
+    u = await create_admin_user(db_session, email="root@x.com", password="password-1234")
     assert u.email == "root@x.com"
     role_names = {r.name for r in u.roles}
     assert "admin" in role_names
@@ -27,9 +25,7 @@ async def test_create_admin_duplicate_email_without_force_raises(
 ) -> None:
     await create_admin_user(db_session, email="dup@x.com", password="password-1234")
     with pytest.raises(RuntimeError, match="already exists"):
-        await create_admin_user(
-            db_session, email="dup@x.com", password="password-1234"
-        )
+        await create_admin_user(db_session, email="dup@x.com", password="password-1234")
 
 
 async def test_create_admin_with_force_rehashes_preserves_role(

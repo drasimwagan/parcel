@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ async def test_create_session_persists_row(db_session: AsyncSession, user_factor
     assert got.ip_address == "127.0.0.1"
     assert got.user_agent == "pytest"
     assert got.revoked_at is None
-    assert got.expires_at > datetime.now(timezone.utc)
+    assert got.expires_at > datetime.now(UTC)
 
 
 async def test_lookup_returns_session_when_valid(db_session: AsyncSession, user_factory) -> None:
@@ -46,7 +46,7 @@ async def test_lookup_returns_none_when_absolute_expired(
 ) -> None:
     u = await user_factory()
     s = await sess.create_session(db_session, user_id=u.id)
-    s.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    s.expires_at = datetime.now(UTC) - timedelta(minutes=1)
     await db_session.flush()
     assert await sess.lookup(db_session, s.id) is None
 
@@ -56,7 +56,7 @@ async def test_lookup_returns_none_when_idle_expired(
 ) -> None:
     u = await user_factory()
     s = await sess.create_session(db_session, user_id=u.id)
-    s.last_seen_at = datetime.now(timezone.utc) - (IDLE_TTL + timedelta(minutes=1))
+    s.last_seen_at = datetime.now(UTC) - (IDLE_TTL + timedelta(minutes=1))
     await db_session.flush()
     assert await sess.lookup(db_session, s.id) is None
 
@@ -64,7 +64,7 @@ async def test_lookup_returns_none_when_idle_expired(
 async def test_bump_advances_last_seen(db_session: AsyncSession, user_factory) -> None:
     u = await user_factory()
     s = await sess.create_session(db_session, user_id=u.id)
-    s.last_seen_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    s.last_seen_at = datetime.now(UTC) - timedelta(minutes=10)
     await db_session.flush()
     original = s.last_seen_at
     await sess.bump(db_session, s)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +32,7 @@ async def lookup(db: AsyncSession, session_id: uuid.UUID) -> Session | None:
         return None
     if s.revoked_at is not None:
         return None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if s.expires_at <= now:
         return None
     if now - s.last_seen_at > IDLE_TTL:
@@ -41,17 +41,17 @@ async def lookup(db: AsyncSession, session_id: uuid.UUID) -> Session | None:
 
 
 async def bump(db: AsyncSession, session: Session) -> None:
-    session.last_seen_at = datetime.now(timezone.utc)
+    session.last_seen_at = datetime.now(UTC)
     await db.flush()
 
 
 async def revoke(db: AsyncSession, session: Session) -> None:
-    session.revoked_at = datetime.now(timezone.utc)
+    session.revoked_at = datetime.now(UTC)
     await db.flush()
 
 
 async def revoke_all_for_user(db: AsyncSession, user_id: uuid.UUID) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await db.execute(
         update(Session)
         .where(and_(Session.user_id == user_id, Session.revoked_at.is_(None)))

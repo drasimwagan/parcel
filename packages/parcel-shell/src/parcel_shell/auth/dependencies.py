@@ -16,9 +16,7 @@ from parcel_shell.rbac.models import User
 COOKIE_NAME = "parcel_session"
 
 
-async def current_session(
-    request: Request, db: AsyncSession = Depends(get_session)
-) -> DbSession:
+async def current_session(request: Request, db: AsyncSession = Depends(get_session)) -> DbSession:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not_authenticated")

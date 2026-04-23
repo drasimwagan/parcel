@@ -7,14 +7,10 @@ from parcel_shell.bootstrap import create_admin_user
 
 
 async def test_admin_happy_path(client: AsyncClient, db_session: AsyncSession) -> None:
-    await create_admin_user(
-        db_session, email="boot@x.com", password="password-1234"
-    )
+    await create_admin_user(db_session, email="boot@x.com", password="password-1234")
     await db_session.flush()
 
-    r = await client.post(
-        "/auth/login", json={"email": "boot@x.com", "password": "password-1234"}
-    )
+    r = await client.post("/auth/login", json={"email": "boot@x.com", "password": "password-1234"})
     assert r.status_code == 200
 
     me = await client.get("/auth/me")

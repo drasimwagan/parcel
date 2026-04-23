@@ -5,6 +5,7 @@ Revises: 0001
 Create Date: 2026-04-23 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -38,8 +39,12 @@ def upgrade() -> None:
         sa.Column("email", sa.Text(), nullable=False, unique=True),
         sa.Column("password_hash", sa.Text(), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         schema="shell",
     )
 
@@ -52,8 +57,12 @@ def upgrade() -> None:
             sa.ForeignKey("shell.users.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("last_seen_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "last_seen_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("expires_at", TIMESTAMP(timezone=True), nullable=False),
         sa.Column("revoked_at", TIMESTAMP(timezone=True)),
         sa.Column("ip_address", INET()),

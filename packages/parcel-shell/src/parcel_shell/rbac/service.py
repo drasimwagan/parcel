@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,7 @@ class PermissionNotRegistered(Exception):
 
 
 # ── Users ───────────────────────────────────────────────────────────────
+
 
 async def create_user(
     db: AsyncSession, *, email: str, password: str, is_active: bool = True
@@ -51,7 +52,7 @@ async def authenticate(db: AsyncSession, *, email: str, password: str) -> User |
         return None
     if needs_rehash(u.password_hash):
         u.password_hash = hash_password(password)
-        u.updated_at = datetime.now(timezone.utc)
+        u.updated_at = datetime.now(UTC)
     return u
 
 
@@ -63,15 +64,19 @@ async def change_password(
     if len(new_password) < MIN_PASSWORD_LENGTH:
         raise ValueError(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
     user.password_hash = hash_password(new_password)
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     await db.flush()
 
 
-async def list_users(db: AsyncSession, *, offset: int = 0, limit: int = 50) -> tuple[list[User], int]:
+async def list_users(
+    db: AsyncSession, *, offset: int = 0, limit: int = 50
+) -> tuple[list[User], int]:
     total = (await db.execute(select(func.count()).select_from(User))).scalar_one()
     rows = (
-        await db.execute(select(User).order_by(User.created_at).offset(offset).limit(limit))
-    ).scalars().all()
+        (await db.execute(select(User).order_by(User.created_at).offset(offset).limit(limit)))
+        .scalars()
+        .all()
+    )
     return list(rows), total
 
 
@@ -86,14 +91,14 @@ async def update_user(
         user.email = email.lower()
     if is_active is not None:
         user.is_active = is_active
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     await db.flush()
     return user
 
 
 async def deactivate_user(db: AsyncSession, *, user: User) -> User:
     user.is_active = False
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
     from parcel_shell.auth.sessions import revoke_all_for_user
 
     await revoke_all_for_user(db, user.id)
@@ -102,6 +107,7 @@ async def deactivate_user(db: AsyncSession, *, user: User) -> User:
 
 
 # ── Roles ───────────────────────────────────────────────────────────────
+
 
 async def create_role(db: AsyncSession, *, name: str, description: str | None = None) -> Role:
     r = Role(name=name, description=description)
@@ -138,9 +144,7 @@ async def delete_role(db: AsyncSession, role: Role) -> None:
     await db.flush()
 
 
-async def assign_permission_to_role(
-    db: AsyncSession, *, role: Role, permission_name: str
-) -> None:
+async def assign_permission_to_role(db: AsyncSession, *, role: Role, permission_name: str) -> None:
     perm = await db.get(Permission, permission_name)
     if perm is None:
         raise PermissionNotRegistered(permission_name)
@@ -162,6 +166,7 @@ async def unassign_permission_from_role(
 
 # ── User ↔ Role ─────────────────────────────────────────────────────────
 
+
 async def assign_role_to_user(db: AsyncSession, *, user: User, role: Role) -> None:
     await db.refresh(user, ["roles"])
     if any(r.id == role.id for r in user.roles):
@@ -178,10 +183,9 @@ async def unassign_role_from_user(db: AsyncSession, *, user: User, role: Role) -
 
 # ── Permissions ─────────────────────────────────────────────────────────
 
+
 async def list_permissions(db: AsyncSession) -> list[Permission]:
-    return list(
-        (await db.execute(select(Permission).order_by(Permission.name))).scalars().all()
-    )
+    return list((await db.execute(select(Permission).order_by(Permission.name))).scalars().all())
 
 
 async def effective_permissions(db: AsyncSession, user_id: uuid.UUID) -> set[str]:

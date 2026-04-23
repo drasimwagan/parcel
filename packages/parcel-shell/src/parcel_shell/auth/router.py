@@ -55,9 +55,7 @@ def _apply_cookie(response: Response, *, request: Request, session_id: uuid.UUID
 
 
 async def _classify_login_failure(db: AsyncSession, email: str) -> str:
-    row = (
-        await db.execute(select(User).where(User.email == email.lower()))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(User).where(User.email == email.lower()))).scalar_one_or_none()
     if row is None:
         return "no_user"
     if not row.is_active:
@@ -97,9 +95,7 @@ async def logout(
 ) -> Response:
     token = request.cookies.get(COOKIE_NAME)
     if token:
-        sid = verify_session_cookie(
-            token, secret=request.app.state.settings.session_secret
-        )
+        sid = verify_session_cookie(token, secret=request.app.state.settings.session_secret)
         if sid is not None:
             s = await sess.lookup(db, sid)
             if s is not None:
@@ -128,6 +124,6 @@ async def change_password(
             current_password=payload.current_password,
             new_password=payload.new_password,
         )
-    except service.InvalidCredentials:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_current_password")
+    except service.InvalidCredentials as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_current_password") from e
     return Response(status_code=status.HTTP_204_NO_CONTENT)

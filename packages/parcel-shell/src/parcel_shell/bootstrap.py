@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import getpass
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,9 +19,7 @@ from parcel_shell.rbac.models import Role, User
 async def _get_admin_role(db: AsyncSession) -> Role:
     role = (await db.execute(select(Role).where(Role.name == "admin"))).scalar_one_or_none()
     if role is None:
-        raise RuntimeError(
-            "built-in admin role missing — run 'alembic upgrade head' first"
-        )
+        raise RuntimeError("built-in admin role missing — run 'alembic upgrade head' first")
     return role
 
 
@@ -33,13 +31,9 @@ async def create_admin_user(
     force: bool = False,
 ) -> User:
     if len(password) < service.MIN_PASSWORD_LENGTH:
-        raise ValueError(
-            f"password must be at least {service.MIN_PASSWORD_LENGTH} characters"
-        )
+        raise ValueError(f"password must be at least {service.MIN_PASSWORD_LENGTH} characters")
     lowered = email.lower()
-    existing = (
-        await db.execute(select(User).where(User.email == lowered))
-    ).scalar_one_or_none()
+    existing = (await db.execute(select(User).where(User.email == lowered))).scalar_one_or_none()
     admin_role = await _get_admin_role(db)
 
     if existing is not None:
@@ -47,7 +41,7 @@ async def create_admin_user(
             raise RuntimeError(f"user {lowered!r} already exists; use --force to rehash")
         await db.refresh(existing, ["roles"])
         existing.password_hash = hash_password(password)
-        existing.updated_at = datetime.now(timezone.utc)
+        existing.updated_at = datetime.now(UTC)
         if not any(r.id == admin_role.id for r in existing.roles):
             existing.roles.append(admin_role)
         await db.flush()

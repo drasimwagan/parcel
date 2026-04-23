@@ -35,9 +35,7 @@ async def test_delete_builtin_role_is_403(authed_client: AsyncClient) -> None:
 
 
 async def test_assign_permission_to_role(authed_client: AsyncClient) -> None:
-    r = await authed_client.post(
-        "/admin/roles", json={"name": "viewer", "description": None}
-    )
+    r = await authed_client.post("/admin/roles", json={"name": "viewer", "description": None})
     rid = r.json()["id"]
     r2 = await authed_client.post(
         f"/admin/roles/{rid}/permissions", json={"permission_name": "users.read"}
@@ -48,9 +46,7 @@ async def test_assign_permission_to_role(authed_client: AsyncClient) -> None:
 
 
 async def test_assign_unregistered_permission_is_404(authed_client: AsyncClient) -> None:
-    r = await authed_client.post(
-        "/admin/roles", json={"name": "mis", "description": None}
-    )
+    r = await authed_client.post("/admin/roles", json={"name": "mis", "description": None})
     rid = r.json()["id"]
     r2 = await authed_client.post(
         f"/admin/roles/{rid}/permissions", json={"permission_name": "bogus.perm"}
@@ -59,9 +55,7 @@ async def test_assign_unregistered_permission_is_404(authed_client: AsyncClient)
 
 
 async def test_unassign_permission(authed_client: AsyncClient) -> None:
-    r = await authed_client.post(
-        "/admin/roles", json={"name": "cleaner", "description": None}
-    )
+    r = await authed_client.post("/admin/roles", json={"name": "cleaner", "description": None})
     rid = r.json()["id"]
     await authed_client.post(
         f"/admin/roles/{rid}/permissions", json={"permission_name": "users.read"}

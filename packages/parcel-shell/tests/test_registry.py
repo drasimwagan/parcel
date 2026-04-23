@@ -67,5 +67,7 @@ async def test_sync_to_db_upserts(db_session: AsyncSession) -> None:
     await db_session.flush()
     db_session.expire_all()
 
-    got = (await db_session.execute(select(Permission).where(Permission.name == "foo.read"))).scalar_one()
+    got = (
+        await db_session.execute(select(Permission).where(Permission.name == "foo.read"))
+    ).scalar_one()
     assert got.description == "Read foo v2"

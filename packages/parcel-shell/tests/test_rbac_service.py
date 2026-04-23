@@ -31,7 +31,9 @@ async def test_authenticate_wrong_password(db_session: AsyncSession, user_factor
 
 async def test_authenticate_inactive_user(db_session: AsyncSession, user_factory) -> None:
     await user_factory(email="off@x.com", password="password-1234", is_active=False)
-    assert await service.authenticate(db_session, email="off@x.com", password="password-1234") is None
+    assert (
+        await service.authenticate(db_session, email="off@x.com", password="password-1234") is None
+    )
 
 
 async def test_authenticate_unknown_user(db_session: AsyncSession) -> None:

@@ -22,7 +22,9 @@ class PermissionRegistry:
     def register(self, name: str, description: str, module: str = "shell") -> None:
         existing = self._items.get(name)
         if existing is None:
-            self._items[name] = RegisteredPermission(name=name, description=description, module=module)
+            self._items[name] = RegisteredPermission(
+                name=name, description=description, module=module
+            )
             return
         if existing.description != description or existing.module != module:
             raise ValueError(f"permission {name!r} re-registered with different attributes")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -11,7 +10,12 @@ from alembic import command
 from alembic.config import Config
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from testcontainers.postgres import PostgresContainer
 
 from parcel_shell.auth.hashing import hash_password
@@ -69,7 +73,9 @@ async def db_session(migrations_applied: str) -> AsyncIterator[AsyncSession]:
     try:
         async with eng.connect() as conn:
             trans = await conn.begin()
-            async_session = async_sessionmaker(bind=conn, expire_on_commit=False, class_=AsyncSession)
+            async_session = async_sessionmaker(
+                bind=conn, expire_on_commit=False, class_=AsyncSession
+            )
             try:
                 async with async_session() as s:
                     yield s
@@ -118,6 +124,7 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
 
 
 # ── Factories ────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def user_factory(db_session: AsyncSession):
@@ -170,9 +177,7 @@ def role_factory(db_session: AsyncSession):
 
 
 @pytest.fixture
-async def admin_user(
-    user_factory, db_session: AsyncSession
-) -> User:
+async def admin_user(user_factory, db_session: AsyncSession) -> User:
     from sqlalchemy import select
 
     admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()

@@ -8,9 +8,7 @@ async def test_list_users_requires_auth(client: AsyncClient) -> None:
     assert r.status_code == 401
 
 
-async def test_list_users_forbidden_without_permission(
-    client: AsyncClient, user_factory
-) -> None:
+async def test_list_users_forbidden_without_permission(client: AsyncClient, user_factory) -> None:
     await user_factory(email="peon@x.com", password="password-1234")
     await client.post("/auth/login", json={"email": "peon@x.com", "password": "password-1234"})
     r = await client.get("/admin/users")
@@ -81,9 +79,7 @@ async def test_assign_and_unassign_role(authed_client: AsyncClient, role_factory
         json={"email": "rr@x.com", "password": "password-1234", "role_ids": []},
     )
     uid = r.json()["id"]
-    r2 = await authed_client.post(
-        f"/admin/users/{uid}/roles", json={"role_id": str(role.id)}
-    )
+    r2 = await authed_client.post(f"/admin/users/{uid}/roles", json={"role_id": str(role.id)})
     assert r2.status_code == 204
 
     detail = await authed_client.get(f"/admin/users/{uid}")
