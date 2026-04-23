@@ -65,6 +65,7 @@ async def test_sync_to_db_upserts(db_session: AsyncSession) -> None:
     reg2.register("foo.read", "Read foo v2")
     await reg2.sync_to_db(db_session)
     await db_session.flush()
+    db_session.expire_all()
 
     got = (await db_session.execute(select(Permission).where(Permission.name == "foo.read"))).scalar_one()
     assert got.description == "Read foo v2"
