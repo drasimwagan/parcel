@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parcel — AI-native business-application platform</title>
+<meta name="description" content="Parcel is an AI-native, modular business-application platform. Describe a business need in plain language; get a working module. Python, FastAPI, HTMX." />
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="./style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+<meta property="og:title" content="Parcel — AI-native business-application platform" />
+<meta property="og:description" content="Describe a business need in plain language; Parcel drafts a module, runs it in a sandbox, previews, and installs on approval." />
+<meta property="og:type" content="website" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="./">parcel</a>
+    <nav class="top-nav">
+      <a href="#what">What</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="container">
+    <div class="eyebrow">Pre-alpha · MIT · Python 3.12+</div>
+    <h1>Describe the thing you need. <em>Get a working module.</em></h1>
+    <p class="lede">
+      Parcel is an AI-native, modular business-application platform. An admin writes a business
+      need in plain language. Parcel drafts a module — models, views, migrations, tests — runs it
+      in a sandbox, shows a preview, and installs it on approval. Developers can hand-write the
+      same kind of module with a typed Python SDK when precision matters. End users never see
+      the authoring layer.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/drasimwagan/parcel">View on GitHub</a>
+      <a class="btn" href="#quickstart">Quickstart</a>
+      <a class="btn" href="#roadmap">Roadmap</a>
+    </div>
+    <div class="stat-line"><span class="dot"></span> Phase 1 — Shell foundation — complete. Phase 2 (auth + RBAC) up next.</div>
+  </div>
+</section>
+
+<section class="band" id="what">
+  <div class="container">
+    <h2>What Parcel is</h2>
+    <p class="section-lede">
+      Think Odoo, redesigned around large-language-model authoring. The shell is a small,
+      well-typed FastAPI service that does auth, RBAC, the admin UI, and the module lifecycle.
+      Everything else is a module — a Python package, pip-installable, discovered via entry
+      points, owning its own Postgres schema and Alembic migrations.
+    </p>
+    <div class="pillars">
+      <div class="pillar">
+        <h3>Shell</h3>
+        <p>FastAPI, HTMX, Postgres, Redis. Auth, RBAC, admin UI, module loader, AI authoring pipeline. Knows zero module names.</p>
+      </div>
+      <div class="pillar">
+        <h3>SDK</h3>
+        <p>The only thing modules import. Stable, versioned surface: models, permissions, views, migrations.</p>
+      </div>
+      <div class="pillar">
+        <h3>Modules</h3>
+        <p>Pip-installable packages. Own their schema (<code>mod_&lt;name&gt;</code>) and migrations. Capabilities declared in the manifest; admins approve at install time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="architecture">
+  <div class="container">
+    <h2>How the AI generator will work</h2>
+    <p class="section-lede">
+      Landing in Phase 7. The flow is deliberately uninteresting — because "interesting" in this
+      space is how you lose people's data.
+    </p>
+    <ol style="color: var(--fg-dim); max-width: 60ch; padding-left: 1.2rem; line-height: 1.75;">
+      <li>Admin chats with Claude about what they want.</li>
+      <li>Claude drafts a module against the SDK.</li>
+      <li>Draft runs through <code>ruff</code> + <code>bandit</code> + an AST policy that blocks <code>os</code>, <code>subprocess</code>, <code>socket</code>, <code>eval</code>, <code>exec</code>, and dynamic imports unless the manifest declares the capability.</li>
+      <li>If the static gate passes, the module is installed in a sandbox database.</li>
+      <li>Admin sees a preview — sample records, screenshots of views, the migration plan.</li>
+      <li>On approval, the module installs into production. Capabilities are re-confirmed.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="band" id="roadmap">
+  <div class="container">
+    <h2>Phased roadmap</h2>
+    <p class="section-lede">
+      Every phase is its own brainstorm → plan → implementation cycle. No skipping ahead.
+    </p>
+    <ul class="roadmap">
+      <li>
+        <span class="phase-num">0</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Repo scaffold</span>
+      </li>
+      <li>
+        <span class="phase-num">1</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Shell foundation — FastAPI app, config, async SQLAlchemy, Alembic, logging, health, <code>docker compose</code> end-to-end</span>
+      </li>
+      <li>
+        <span class="phase-num">2</span>
+        <span class="phase-status next">⏭ next</span>
+        <span class="phase-goal">Auth + RBAC — users, sessions, Argon2, roles, permissions registry</span>
+      </li>
+      <li>
+        <span class="phase-num">3</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">Module system — manifest spec, entry-point discovery, migration orchestrator, admin module page</span>
+      </li>
+      <li>
+        <span class="phase-num">4</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">Admin UI shell — Jinja base layout, Tailwind, HTMX, dynamic sidebar</span>
+      </li>
+      <li>
+        <span class="phase-num">5</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">Contacts demo module — end-to-end CRM lite</span>
+      </li>
+      <li>
+        <span class="phase-num">6</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">SDK polish + <code>parcel</code> CLI</span>
+      </li>
+      <li>
+        <span class="phase-num">7</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">AI module generator — Claude API, static gate, sandbox, preview, approve flow</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="band quickstart" id="quickstart">
+  <div class="container">
+    <h2>Quickstart</h2>
+    <p>Requires Docker. Clone, bring up dependencies, migrate, run.</p>
+<pre><code>git clone https://github.com/drasimwagan/parcel.git
+cd parcel
+cp .env.example .env                       <span style="color: var(--fg-muted)"># edit PARCEL_SESSION_SECRET for non-dev use</span>
+docker compose up -d postgres redis
+docker compose run --rm shell migrate      <span style="color: var(--fg-muted)"># creates the `shell` schema</span>
+docker compose up -d shell</code></pre>
+    <p style="margin-top: 1.5rem">Smoke-check:</p>
+<pre><code>curl http://localhost:8000/health/live     <span style="color: var(--fg-muted)"># {"status":"ok"}</span>
+curl http://localhost:8000/health/ready    <span style="color: var(--fg-muted)"># {"status":"ok","checks":{"db":"ok","redis":"ok"}}</span></code></pre>
+    <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
+<pre><code>uv sync --all-packages
+uv run pytest</code></pre>
+  </div>
+</section>
+
+<section class="band" id="principles">
+  <div class="container">
+    <h2>Design principles</h2>
+    <div class="pillars">
+      <div class="pillar">
+        <h3>Small, typed surface</h3>
+        <p>Python 3.12, <code>pyright</code> strict on the shell and SDK. Every public function has a test. No raw SQL in application code.</p>
+      </div>
+      <div class="pillar">
+        <h3>Isolation by default</h3>
+        <p>Each module owns its schema. Shell never imports from a module. Modules only share code through <code>parcel-sdk</code>.</p>
+      </div>
+      <div class="pillar">
+        <h3>AI is sandboxed</h3>
+        <p>Generated code never touches the production database without an admin preview. Capabilities must be declared and approved.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="https://github.com/drasimwagan/parcel/issues">Issues</a> ·
+      <a href="https://github.com/drasimwagan/parcel/pulls">Pull requests</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
