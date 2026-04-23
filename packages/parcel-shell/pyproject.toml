@@ -6,7 +6,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    # Phase 1 will populate. Kept empty to make the scaffold installable without pulling deps yet.
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "redis>=5.2",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
 ]
 
 [build-system]
