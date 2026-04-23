@@ -40,8 +40,6 @@ async def test_delete_builtin_role_shows_error_flash(committing_admin) -> None:
     m = re.search(r'href="/roles/([0-9a-f-]+)"[^>]*>admin', roles_page.text)
     assert m is not None
     admin_id = m.group(1)
-    r = await committing_admin.post(
-        f"/roles/{admin_id}/delete", follow_redirects=False
-    )
+    r = await committing_admin.post(f"/roles/{admin_id}/delete", follow_redirects=False)
     assert r.status_code == 303
     assert "parcel_flash" in r.headers.get("set-cookie", "")

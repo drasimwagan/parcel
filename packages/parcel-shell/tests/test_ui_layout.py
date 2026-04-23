@@ -21,9 +21,7 @@ async def test_admin_sees_all_sidebar_sections(committing_admin) -> None:
     assert ">Modules<" in r.text
 
 
-async def test_plain_user_sees_only_dashboard(
-    committing_client: AsyncClient, settings
-) -> None:
+async def test_plain_user_sees_only_dashboard(committing_client: AsyncClient, settings) -> None:
     email = f"plain-{uuid.uuid4().hex[:8]}@test.example.com"
     password = "password-1234"
     engine = create_async_engine(settings.database_url, pool_pre_ping=True)

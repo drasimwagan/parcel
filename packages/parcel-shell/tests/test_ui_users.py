@@ -12,9 +12,7 @@ async def test_users_list_shows_admin(committing_admin) -> None:
     assert "@test.example.com" in r.text
 
 
-async def test_create_user_via_form_redirects_to_detail(
-    committing_admin, settings
-) -> None:
+async def test_create_user_via_form_redirects_to_detail(committing_admin, settings) -> None:
     email = f"new-{uuid.uuid4().hex[:8]}@test.example.com"
     try:
         r = await committing_admin.post(

@@ -30,9 +30,7 @@ SIDEBAR: tuple[SidebarSection, ...] = (
     ),
     SidebarSection(
         label="System",
-        items=(
-            SidebarItem(label="Modules", href="/modules", permission="modules.read"),
-        ),
+        items=(SidebarItem(label="Modules", href="/modules", permission="modules.read"),),
     ),
 )
 
@@ -40,9 +38,7 @@ SIDEBAR: tuple[SidebarSection, ...] = (
 def visible_sections(perms: set[str]) -> list[SidebarSection]:
     out: list[SidebarSection] = []
     for section in SIDEBAR:
-        items = tuple(
-            i for i in section.items if i.permission is None or i.permission in perms
-        )
+        items = tuple(i for i in section.items if i.permission is None or i.permission in perms)
         if items:
             out.append(SidebarSection(label=section.label, items=items))
     return out

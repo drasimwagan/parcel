@@ -48,9 +48,7 @@ async def roles_new_form(
     db: AsyncSession = Depends(get_session),
 ) -> Response:
     tpl = get_templates()
-    return tpl.TemplateResponse(
-        request, "roles/new.html", await _ctx(request, user, db, "/roles")
-    )
+    return tpl.TemplateResponse(request, "roles/new.html", await _ctx(request, user, db, "/roles"))
 
 
 @router.post("/roles")
@@ -166,9 +164,7 @@ async def roles_add_permission(
     if role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "role_not_found")
     try:
-        await service.assign_permission_to_role(
-            db, role=role, permission_name=permission_name
-        )
+        await service.assign_permission_to_role(db, role=role, permission_name=permission_name)
     except service.PermissionNotRegistered:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "permission_not_found") from None
     await db.refresh(role, ["permissions"])

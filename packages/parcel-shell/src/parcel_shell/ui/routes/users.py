@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -52,9 +52,7 @@ async def users_new_form(
     db: AsyncSession = Depends(get_session),
 ) -> Response:
     tpl = get_templates()
-    return tpl.TemplateResponse(
-        request, "users/new.html", await _ctx(request, user, db, "/users")
-    )
+    return tpl.TemplateResponse(request, "users/new.html", await _ctx(request, user, db, "/users"))
 
 
 @router.post("/users")
@@ -119,9 +117,7 @@ async def users_edit(
     target = await service.get_user(db, user_id)
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    await service.update_user(
-        db, user=target, email=email, is_active=(is_active is not None)
-    )
+    await service.update_user(db, user=target, email=email, is_active=(is_active is not None))
     response = Response(status_code=204)
     set_flash(
         response,
@@ -217,18 +213,22 @@ async def users_sessions(
     target = await service.get_user(db, user_id)
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = (
-        await db.execute(
-            select(DbSession)
-            .where(
-                DbSession.user_id == user_id,
-                DbSession.revoked_at.is_(None),
-                DbSession.expires_at > now,
+        (
+            await db.execute(
+                select(DbSession)
+                .where(
+                    DbSession.user_id == user_id,
+                    DbSession.revoked_at.is_(None),
+                    DbSession.expires_at > now,
+                )
+                .order_by(DbSession.last_seen_at.desc())
             )
-            .order_by(DbSession.last_seen_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     tpl = get_templates()
     return tpl.TemplateResponse(
         request,

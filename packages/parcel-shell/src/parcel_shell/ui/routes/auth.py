@@ -32,9 +32,7 @@ def _apply_session_cookie(response: Response, *, request: Request, session_id) -
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_form(
-    request: Request, next: str | None = None
-) -> Response:
+async def login_form(request: Request, next: str | None = None) -> Response:
     templates = get_templates()
     return templates.TemplateResponse(
         request,

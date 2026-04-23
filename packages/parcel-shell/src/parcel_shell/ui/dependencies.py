@@ -47,9 +47,7 @@ async def _try_current_user(request: Request, db: AsyncSession) -> User | None:
     return user
 
 
-async def current_user_html(
-    request: Request, db: AsyncSession = Depends(get_session)
-) -> User:
+async def current_user_html(request: Request, db: AsyncSession = Depends(get_session)) -> User:
     """HTML-route auth: redirect to /login?next=... on 401, otherwise return user."""
     user = await _try_current_user(request, db)
     if user is None:

@@ -64,6 +64,7 @@ async def test_login_success_redirects_to_dashboard(
         assert "Dashboard" in r2.text
     finally:
         from parcel_shell.rbac.models import User
+
         async with factory() as s:
             u = (await s.execute(select(User).where(User.email == email))).scalar_one_or_none()
             if u is not None:

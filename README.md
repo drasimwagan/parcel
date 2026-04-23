@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phase 3 complete — shell discovers modules via entry points, admins can install/upgrade/uninstall them through `/admin/modules/*`, each module owns its own Postgres schema and Alembic migrations. The Contacts demo module lands in Phase 5.
+**Status:** Pre-alpha. Phase 4 complete — browser-based admin UI with login, dashboard, users/roles/modules CRUD, and three user-selectable themes. Ships as server-rendered Jinja + HTMX + Alpine.js over Tailwind CDN; no npm build step.
 
 ## Vision
 
@@ -34,7 +34,13 @@ docker compose run --rm shell bootstrap create-admin \
   --email you@example.com --password 'at-least-twelve-chars'
 ```
 
-Then log in via the JSON API:
+### Use the admin UI
+
+Open `http://localhost:8000/` in a browser. You'll be redirected to `/login`. Sign in with the admin credentials you bootstrapped above; the dashboard opens and a sidebar gives you access to Users, Roles, Modules.
+
+Pick a theme from the user menu (top right): **Plain** (default, greyscale), **Blue** (SaaS blue), or **Dark** (terminal-tinted amber on dark). The choice persists in `localStorage`.
+
+### Or via JSON API
 
 ```bash
 curl -c cookies.txt -H 'content-type: application/json' \

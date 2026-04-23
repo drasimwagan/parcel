@@ -33,9 +33,7 @@ def _discovered_index() -> dict[str, DiscoveredModule]:
     return {d.module.name: d for d in discover_modules()}
 
 
-def _summary(
-    name: str, row: InstalledModule | None, d: DiscoveredModule | None
-) -> ModuleSummary:
+def _summary(name: str, row: InstalledModule | None, d: DiscoveredModule | None) -> ModuleSummary:
     declared = list(d.module.capabilities) if d is not None else []
     installed_ver = row.version if row else (d.module.version if d else "")
     return ModuleSummary(
@@ -99,7 +97,7 @@ async def modules_install(
     db: AsyncSession = Depends(get_session),
 ) -> Response:
     form = await request.form()
-    approved: list[str] = form.getlist("approve_capabilities")
+    approved: list[str] = [v for v in form.getlist("approve_capabilities") if isinstance(v, str)]
     index = _discovered_index()
     database_url = request.app.state.settings.database_url
     try:
