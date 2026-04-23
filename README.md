@@ -19,6 +19,8 @@ Parcel is what Odoo would look like if it were designed in 2026 around large-lan
 Requires Docker.
 
 ```bash
+git clone https://github.com/drasimwagan/parcel.git
+cd parcel
 cp .env.example .env                       # edit PARCEL_SESSION_SECRET for non-dev use
 docker compose up -d postgres redis        # start dependencies
 docker compose run --rm shell migrate      # create the `shell` schema
