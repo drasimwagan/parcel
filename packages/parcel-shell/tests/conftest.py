@@ -123,6 +123,75 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
         yield c
 
 
+# ── Phase 3 fixtures ────────────────────────────────────────────────────
+
+_FIXTURE_MODULE_SRC = (
+    Path(__file__).parent / "_fixtures" / "test_module" / "src"
+).resolve()
+
+
+@pytest.fixture(scope="session")
+def test_module_on_path() -> Iterator[None]:
+    """Put the fixture module's src/ on sys.path for the session."""
+    import sys
+
+    added = str(_FIXTURE_MODULE_SRC)
+    if added not in sys.path:
+        sys.path.insert(0, added)
+    yield
+
+
+@pytest.fixture
+def discovered_test_module(test_module_on_path: None):
+    """Load the fixture module fresh and return a DiscoveredModule."""
+    import importlib
+    import sys
+
+    for mod_name in list(sys.modules):
+        if mod_name.startswith("parcel_mod_test"):
+            del sys.modules[mod_name]
+    mod_pkg = importlib.import_module("parcel_mod_test")
+
+    from parcel_shell.modules.discovery import DiscoveredModule
+
+    return DiscoveredModule(
+        module=mod_pkg.module,
+        distribution_name="parcel-mod-test",
+        distribution_version="0.1.0",
+    )
+
+
+@pytest.fixture
+def patch_entry_points(monkeypatch, discovered_test_module):
+    """Make discovery return the fixture module."""
+    from importlib.metadata import EntryPoint
+
+    import parcel_shell.modules.discovery as disco
+
+    synthetic = EntryPoint(
+        name="test",
+        value="parcel_mod_test:module",
+        group="parcel.modules",
+    )
+
+    def fake_entry_points(*, group: str):
+        return [synthetic] if group == "parcel.modules" else []
+
+    monkeypatch.setattr(disco, "entry_points", fake_entry_points)
+    return discovered_test_module
+
+
+@pytest.fixture
+def empty_entry_points(monkeypatch):
+    """Make discovery return nothing."""
+    import parcel_shell.modules.discovery as disco
+
+    def fake_entry_points(*, group: str):
+        return []
+
+    monkeypatch.setattr(disco, "entry_points", fake_entry_points)
+
+
 # ── Factories ────────────────────────────────────────────────────────────
 
 
