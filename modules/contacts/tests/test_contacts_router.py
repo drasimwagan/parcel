@@ -119,6 +119,19 @@ async def test_contacts_list_renders(authed_contacts: AsyncClient) -> None:
     assert "Search by name or email" in r.text
 
 
+async def test_companies_list_is_not_shadowed_by_contact_detail(
+    authed_contacts: AsyncClient,
+) -> None:
+    """Regression: /mod/contacts/companies must render the companies list, not
+    422 from the /{contact_id} route trying to parse "companies" as a UUID.
+    """
+    r = await authed_contacts.get("/mod/contacts/companies")
+    assert r.status_code == 200, r.text
+    assert "Companies" in r.text
+    r2 = await authed_contacts.get("/mod/contacts/companies/new")
+    assert r2.status_code == 200, r2.text
+
+
 async def test_create_contact_redirects_to_detail(authed_contacts: AsyncClient) -> None:
     r = await authed_contacts.post(
         "/mod/contacts/",

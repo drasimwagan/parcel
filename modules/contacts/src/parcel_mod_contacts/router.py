@@ -112,91 +112,11 @@ async def contacts_create(
     return response
 
 
-@router.get("/{contact_id}", response_class=HTMLResponse)
-async def contacts_detail(
-    contact_id: uuid.UUID,
-    request: Request,
-    user=Depends(html_require_permission("contacts.read")),
-    db: AsyncSession = Depends(get_session),
-) -> Response:
-    contact = await service.get_contact(db, contact_id)
-    if contact is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
-    companies, _ = await service.list_companies(db, limit=500)
-    tpl = get_templates()
-    return tpl.TemplateResponse(
-        request,
-        "contacts/detail.html",
-        {
-            **(await _ctx(request, user, db, "/mod/contacts")),
-            "contact": contact,
-            "companies": companies,
-        },
-    )
-
-
-@router.post("/{contact_id}/edit")
-async def contacts_edit(
-    contact_id: uuid.UUID,
-    request: Request,
-    email: str = Form(...),
-    first_name: str = Form(""),
-    last_name: str = Form(""),
-    phone: str = Form(""),
-    company_id: str = Form(""),
-    user=Depends(html_require_permission("contacts.write")),
-    db: AsyncSession = Depends(get_session),
-) -> Response:
-    contact = await service.get_contact(db, contact_id)
-    if contact is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
-    if company_id:
-        await service.update_contact(
-            db,
-            contact=contact,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            phone=phone,
-            company_id=uuid.UUID(company_id),
-        )
-    else:
-        await service.update_contact(
-            db,
-            contact=contact,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            phone=phone,
-            clear_company=True,
-        )
-    response = RedirectResponse(url=f"/mod/contacts/{contact_id}", status_code=303)
-    set_flash(
-        response,
-        Flash(kind="success", msg="Contact saved."),
-        secret=request.app.state.settings.session_secret,
-    )
-    return response
-
-
-@router.post("/{contact_id}/delete")
-async def contacts_delete(
-    contact_id: uuid.UUID,
-    request: Request,
-    user=Depends(html_require_permission("contacts.write")),
-    db: AsyncSession = Depends(get_session),
-) -> Response:
-    contact = await service.get_contact(db, contact_id)
-    if contact is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
-    await service.delete_contact(db, contact=contact)
-    response = RedirectResponse(url="/mod/contacts/", status_code=303)
-    set_flash(
-        response,
-        Flash(kind="info", msg="Contact deleted."),
-        secret=request.app.state.settings.session_secret,
-    )
-    return response
+# Note on route order: FastAPI matches in declaration order. The `/{contact_id}`
+# routes use a UUID type converter, and when a non-UUID path (like "companies")
+# hits them first, FastAPI returns 422 Unprocessable Entity instead of falling
+# through. Companies routes are declared BEFORE the parameterized contact
+# routes so literal paths win.
 
 
 # ── Companies ──────────────────────────────────────────────────────────
@@ -326,6 +246,96 @@ async def companies_delete(
     set_flash(
         response,
         Flash(kind="info", msg="Company deleted."),
+        secret=request.app.state.settings.session_secret,
+    )
+    return response
+
+
+# ── Contact /{id} routes (declared last so literal paths like /companies win) ──
+
+
+@router.get("/{contact_id}", response_class=HTMLResponse)
+async def contacts_detail(
+    contact_id: uuid.UUID,
+    request: Request,
+    user=Depends(html_require_permission("contacts.read")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    contact = await service.get_contact(db, contact_id)
+    if contact is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
+    companies, _ = await service.list_companies(db, limit=500)
+    tpl = get_templates()
+    return tpl.TemplateResponse(
+        request,
+        "contacts/detail.html",
+        {
+            **(await _ctx(request, user, db, "/mod/contacts")),
+            "contact": contact,
+            "companies": companies,
+        },
+    )
+
+
+@router.post("/{contact_id}/edit")
+async def contacts_edit(
+    contact_id: uuid.UUID,
+    request: Request,
+    email: str = Form(...),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    phone: str = Form(""),
+    company_id: str = Form(""),
+    user=Depends(html_require_permission("contacts.write")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    contact = await service.get_contact(db, contact_id)
+    if contact is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
+    if company_id:
+        await service.update_contact(
+            db,
+            contact=contact,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            company_id=uuid.UUID(company_id),
+        )
+    else:
+        await service.update_contact(
+            db,
+            contact=contact,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            clear_company=True,
+        )
+    response = RedirectResponse(url=f"/mod/contacts/{contact_id}", status_code=303)
+    set_flash(
+        response,
+        Flash(kind="success", msg="Contact saved."),
+        secret=request.app.state.settings.session_secret,
+    )
+    return response
+
+
+@router.post("/{contact_id}/delete")
+async def contacts_delete(
+    contact_id: uuid.UUID,
+    request: Request,
+    user=Depends(html_require_permission("contacts.write")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    contact = await service.get_contact(db, contact_id)
+    if contact is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "contact_not_found")
+    await service.delete_contact(db, contact=contact)
+    response = RedirectResponse(url="/mod/contacts/", status_code=303)
+    set_flash(
+        response,
+        Flash(kind="info", msg="Contact deleted."),
         secret=request.app.state.settings.session_secret,
     )
     return response
