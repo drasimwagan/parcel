@@ -82,3 +82,6 @@ async def test_0002_downgrade_removes_tables(
             )
         ).all()
     assert rows == []
+
+    # Restore state so later tests see `head`.
+    await asyncio.to_thread(command.upgrade, cfg, "head")

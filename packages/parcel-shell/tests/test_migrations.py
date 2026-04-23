@@ -38,3 +38,6 @@ async def test_downgrade_base_removes_shell_schema(database_url: str, engine: As
             text("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'shell'")
         )
         assert result.scalar_one_or_none() is None
+
+    # Restore state so later tests (which share the session-scoped testcontainer) still see `head`.
+    await asyncio.to_thread(command.upgrade, cfg, "head")
