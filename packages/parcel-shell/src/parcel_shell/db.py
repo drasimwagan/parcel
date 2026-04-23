@@ -9,11 +9,22 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import DeclarativeBase
 from starlette.requests import Request
 
 SHELL_SCHEMA = "shell"
 
 shell_metadata: MetaData = MetaData(schema=SHELL_SCHEMA)
+
+
+class ShellBase(DeclarativeBase):
+    """Declarative base for all shell-owned tables.
+
+    Tables defined against this base live in the `shell` schema via
+    ``shell_metadata``, so Alembic autogenerate picks them up automatically.
+    """
+
+    metadata = shell_metadata
 
 
 def create_engine(database_url: str) -> AsyncEngine:
