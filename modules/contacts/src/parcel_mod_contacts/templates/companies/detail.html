@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% block title %}{{ company.name }}{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">{{ company.name }}</h2>
+  <a href="/mod/contacts/companies" class="btn">← All companies</a>
+</div>
+<form class="surface" method="post" action="/mod/contacts/companies/{{ company.id }}/edit" style="padding: 20px; max-width: 520px; border-radius: 6px;">
+  <label style="display:block; font-size: 13px; margin: 0 0 4px;">Name</label>
+  <input class="input" type="text" name="name" required value="{{ company.name }}" style="margin-bottom: 12px;">
+  <label style="display:block; font-size: 13px; margin: 0 0 4px;">Website</label>
+  <input class="input" type="url" name="website" value="{{ company.website or '' }}" style="margin-bottom: 16px;">
+  <button class="btn primary" type="submit">Save</button>
+  <button class="btn danger" type="submit" formaction="/mod/contacts/companies/{{ company.id }}/delete" style="margin-left: 8px;" onclick="return confirm('Delete this company? Contacts linked to it will be kept but unlinked.')">Delete</button>
+</form>
+{% endblock %}

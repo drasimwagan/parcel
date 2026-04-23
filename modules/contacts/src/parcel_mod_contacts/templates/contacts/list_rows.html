@@ -1,0 +1,13 @@
+{% for c in contacts %}
+<a href="/mod/contacts/{{ c.id }}" style="display:grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text);">
+  <div>
+    <div style="font-weight: 600;">{% if c.first_name or c.last_name %}{{ c.first_name or '' }} {{ c.last_name or '' }}{% else %}{{ c.email }}{% endif %}</div>
+    <div class="muted" style="font-size: 12px;">{{ c.email }}</div>
+  </div>
+  <div class="muted" style="font-size: 12px; text-align: right; align-self: center;">
+    {% if c.company %}{{ c.company.name }}{% else %}—{% endif %}
+  </div>
+</a>
+{% else %}
+<div class="muted" style="padding: 24px; text-align: center;">No contacts match.</div>
+{% endfor %}

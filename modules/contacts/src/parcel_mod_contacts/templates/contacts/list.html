@@ -1,0 +1,21 @@
+{% extends "_base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">Contacts</h2>
+  <a class="btn primary" href="/mod/contacts/new">+ New contact</a>
+</div>
+
+<input class="input" type="search" name="q" placeholder="Search by name or email…"
+       value="{{ q or '' }}"
+       hx-get="/mod/contacts/"
+       hx-trigger="keyup changed delay:300ms, search"
+       hx-target="#contacts-rows"
+       hx-select="#contacts-rows > *"
+       hx-swap="innerHTML"
+       style="max-width: 360px; margin-bottom: 12px;">
+
+<div class="surface" id="contacts-rows" style="border-radius: 6px;">
+  {% include "contacts/list_rows.html" %}
+</div>
+{% endblock %}

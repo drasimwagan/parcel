@@ -619,8 +619,20 @@ source = { editable = "packages/parcel-cli" }
 
 [[package]]
 name = "parcel-mod-contacts"
-version = "0.0.0"
+version = "0.1.0"
 source = { editable = "modules/contacts" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "parcel-sdk" },
+    { name = "parcel-shell" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "parcel-sdk", editable = "packages/parcel-sdk" },
+    { name = "parcel-shell", editable = "packages/parcel-shell" },
+]
 
 [[package]]
 name = "parcel-sdk"

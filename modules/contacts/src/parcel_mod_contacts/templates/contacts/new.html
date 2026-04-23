@@ -1,0 +1,41 @@
+{% extends "_base.html" %}
+{% block title %}New contact{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">New contact</h2>
+<div class="surface" style="padding: 20px; max-width: 560px; border-radius: 6px;">
+  {% if error %}<div class="alert error" style="margin: 0 0 12px;">{{ error }}</div>{% endif %}
+  <form method="post" action="/mod/contacts/">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label style="display:block; font-size: 13px; margin: 0 0 4px;">First name</label>
+        <input class="input" type="text" name="first_name" value="{{ first_name or '' }}">
+      </div>
+      <div>
+        <label style="display:block; font-size: 13px; margin: 0 0 4px;">Last name</label>
+        <input class="input" type="text" name="last_name" value="{{ last_name or '' }}">
+      </div>
+      <div style="grid-column: 1 / span 2;">
+        <label style="display:block; font-size: 13px; margin: 0 0 4px;">Email</label>
+        <input class="input" type="email" name="email" required value="{{ email or '' }}">
+      </div>
+      <div>
+        <label style="display:block; font-size: 13px; margin: 0 0 4px;">Phone</label>
+        <input class="input" type="text" name="phone" value="{{ phone or '' }}">
+      </div>
+      <div>
+        <label style="display:block; font-size: 13px; margin: 0 0 4px;">Company</label>
+        <select class="input" name="company_id">
+          <option value="">—</option>
+          {% for co in companies %}
+          <option value="{{ co.id }}">{{ co.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div style="margin-top: 16px;">
+      <button class="btn primary" type="submit">Create</button>
+      <a class="btn" href="/mod/contacts/" style="margin-left: 8px;">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

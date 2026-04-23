@@ -1,0 +1,42 @@
+{% extends "_base.html" %}
+{% block title %}{{ contact.email }}{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">{% if contact.first_name or contact.last_name %}{{ contact.first_name or '' }} {{ contact.last_name or '' }}{% else %}{{ contact.email }}{% endif %}</h2>
+  <a href="/mod/contacts/" class="btn">← All contacts</a>
+</div>
+
+<form class="surface" method="post" action="/mod/contacts/{{ contact.id }}/edit" style="padding: 20px; max-width: 640px; border-radius: 6px;">
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+    <div>
+      <label style="display:block; font-size: 13px; margin: 0 0 4px;">First name</label>
+      <input class="input" type="text" name="first_name" value="{{ contact.first_name or '' }}">
+    </div>
+    <div>
+      <label style="display:block; font-size: 13px; margin: 0 0 4px;">Last name</label>
+      <input class="input" type="text" name="last_name" value="{{ contact.last_name or '' }}">
+    </div>
+    <div style="grid-column: 1 / span 2;">
+      <label style="display:block; font-size: 13px; margin: 0 0 4px;">Email</label>
+      <input class="input" type="email" name="email" required value="{{ contact.email }}">
+    </div>
+    <div>
+      <label style="display:block; font-size: 13px; margin: 0 0 4px;">Phone</label>
+      <input class="input" type="text" name="phone" value="{{ contact.phone or '' }}">
+    </div>
+    <div>
+      <label style="display:block; font-size: 13px; margin: 0 0 4px;">Company</label>
+      <select class="input" name="company_id">
+        <option value="">—</option>
+        {% for co in companies %}
+        <option value="{{ co.id }}" {% if contact.company_id == co.id %}selected{% endif %}>{{ co.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div style="margin-top: 16px;">
+    <button class="btn primary" type="submit">Save</button>
+    <button class="btn danger" type="submit" formaction="/mod/contacts/{{ contact.id }}/delete" style="margin-left: 8px;" onclick="return confirm('Delete this contact?')">Delete</button>
+  </div>
+</form>
+{% endblock %}

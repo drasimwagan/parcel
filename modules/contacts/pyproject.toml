@@ -1,23 +1,30 @@
 [project]
 name = "parcel-mod-contacts"
-version = "0.0.0"
-description = "Parcel demo module — Contacts / CRM lite (Phase 5 target)"
+version = "0.1.0"
+description = "Parcel demo module — Contacts / CRM lite"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    # Phase 5 will add: parcel-sdk (workspace)
+    "parcel-sdk",
+    # Phase 5 pragmatic concession: Contacts module imports shell hooks
+    # (get_session, html_require_permission, sidebar_for, etc.) directly from
+    # parcel-shell. Phase 6 ("SDK polish") extracts a stable SDK facade so
+    # modules no longer depend on parcel-shell internals.
+    "parcel-shell",
+    "fastapi>=0.115",
 ]
 
-# Phase 5 will register the entry point:
-# [project.entry-points."parcel.modules"]
-# contacts = "parcel_mod_contacts:module"
+[project.entry-points."parcel.modules"]
+contacts = "parcel_mod_contacts:module"
+
+[tool.uv.sources]
+parcel-sdk = { workspace = true }
+parcel-shell = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# Phase 5 will add: packages = ["src/parcel_mod_contacts"]
-# For now, ship only metadata so the workspace resolves.
-bypass-selection = true
+packages = ["src/parcel_mod_contacts"]
