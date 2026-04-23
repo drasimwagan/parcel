@@ -90,3 +90,4 @@ sandbox-modules/
 *.db
 *.sqlite
 *.sqlite3
+.superpowers/
