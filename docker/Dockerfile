@@ -1,6 +1,4 @@
 # Parcel shell image.
-# Phase 0: scaffold only — does not run an app yet.
-# Phase 1 will wire up uvicorn to packages/parcel-shell.
 
 FROM python:3.12-slim AS base
 
@@ -25,7 +23,9 @@ COPY .python-version ./
 COPY packages/ ./packages/
 COPY modules/ ./modules/
 
-RUN uv sync --frozen 2>/dev/null || uv sync
+COPY uv.lock ./
+
+RUN uv sync --all-packages --frozen 2>/dev/null || uv sync --all-packages
 
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

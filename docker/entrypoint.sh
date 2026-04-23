@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Parcel container entrypoint.
-# Phase 0: placeholder. Phase 1 will wire real commands.
 
 set -euo pipefail
 
@@ -8,14 +7,15 @@ cmd="${1:-serve}"
 
 case "$cmd" in
   serve)
-    echo "[parcel] Phase 0 scaffold — shell not yet implemented. Sleeping."
-    # Phase 1 will replace with:
-    # exec uv run uvicorn parcel_shell.app:app --host 0.0.0.0 --port 8000 --reload
-    exec sleep infinity
+    exec uv run uvicorn --factory parcel_shell.app:create_app \
+      --host "${PARCEL_HOST:-0.0.0.0}" \
+      --port "${PARCEL_PORT:-8000}" \
+      --reload
     ;;
   migrate)
-    echo "[parcel] Phase 0 scaffold — migrations not yet implemented."
-    exit 0
+    exec uv run alembic \
+      -c packages/parcel-shell/src/parcel_shell/alembic.ini \
+      upgrade head
     ;;
   shell)
     exec /bin/bash
