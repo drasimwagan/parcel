@@ -1,0 +1,56 @@
+[project]
+name = "parcel-workspace"
+version = "0.0.0"
+description = "Parcel — AI-native modular business-application platform (workspace root)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Asim" }]
+
+[tool.uv.workspace]
+members = ["packages/*", "modules/*"]
+
+# Dev-only tooling shared across the workspace.
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.5",
+    "pyright>=1.1.380",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["packages/*/src", "modules/*/src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+    "ASYNC", # flake8-async
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "S101", # assert is fine in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S"]
+
+[tool.pyright]
+include = ["packages/*/src", "modules/*/src"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingImports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages", "modules"]
+python_files = ["test_*.py", "*_test.py"]

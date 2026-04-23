@@ -1,0 +1,20 @@
+# Normalize text files to LF in the repo; working-copy line endings follow the platform.
+* text=auto eol=lf
+
+# Shell scripts and Dockerfiles MUST stay LF or they break in Linux containers.
+*.sh       text eol=lf
+Dockerfile text eol=lf
+*.py       text eol=lf
+*.toml     text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+
+# Treat these as binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

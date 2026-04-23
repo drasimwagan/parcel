@@ -1,0 +1,67 @@
+# Parcel — dev stack.
+# `docker compose up -d` brings shell + postgres + redis.
+# Worker service will be added in Phase 7 when background jobs are needed.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: parcel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: parcel
+      POSTGRES_USER: parcel
+      POSTGRES_PASSWORD: parcel
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parcel -d parcel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: parcel-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  shell:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: parcel-shell
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Live-mount source in dev so uvicorn --reload picks up changes.
+      - ./packages:/app/packages
+      - ./modules:/app/modules
+
+  # --- Phase 7 will add ---
+  # worker:
+  #   build: { context: ., dockerfile: docker/Dockerfile }
+  #   command: ["arq", "parcel_shell.jobs.WorkerSettings"]
+  #   depends_on: [redis, postgres]
+  #   env_file: [.env]
+
+volumes:
+  postgres-data:
+  redis-data:
