@@ -59,6 +59,10 @@ SHELL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("sessions.read", "List another user's sessions"),
     ("sessions.revoke", "Revoke another user's sessions"),
     ("permissions.read", "List registered permissions"),
+    ("modules.read", "View registered and discovered modules"),
+    ("modules.install", "Install a discovered module"),
+    ("modules.upgrade", "Run migrations for an already-installed module"),
+    ("modules.uninstall", "Deactivate or remove a module"),
 )
 
 
