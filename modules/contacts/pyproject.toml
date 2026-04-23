@@ -1,0 +1,23 @@
+[project]
+name = "parcel-mod-contacts"
+version = "0.0.0"
+description = "Parcel demo module — Contacts / CRM lite (Phase 5 target)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    # Phase 5 will add: parcel-sdk (workspace)
+]
+
+# Phase 5 will register the entry point:
+# [project.entry-points."parcel.modules"]
+# contacts = "parcel_mod_contacts:module"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Phase 5 will add: packages = ["src/parcel_mod_contacts"]
+# For now, ship only metadata so the workspace resolves.
+bypass-selection = true
