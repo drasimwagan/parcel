@@ -7,7 +7,7 @@ from starlette.responses import HTMLResponse
 from parcel_shell.db import get_session
 from parcel_shell.rbac import service
 from parcel_shell.ui.dependencies import current_user_html
-from parcel_shell.ui.sidebar import visible_sections
+from parcel_shell.ui.sidebar import sidebar_for
 from parcel_shell.ui.templates import get_templates
 
 router = APIRouter(tags=["ui"])
@@ -26,7 +26,7 @@ async def dashboard(
         "dashboard.html",
         {
             "user": user,
-            "sidebar": visible_sections(perms),
+            "sidebar": sidebar_for(request, perms),
             "active_path": "/",
             "settings": request.app.state.settings,
             "permissions": perms,

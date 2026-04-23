@@ -1,0 +1,21 @@
+{% extends "_base.html" %}
+{% block title %}Companies{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">Companies</h2>
+  <a class="btn primary" href="/mod/contacts/companies/new">+ New company</a>
+</div>
+
+<input class="input" type="search" name="q" placeholder="Search companies…"
+       value="{{ q or '' }}"
+       hx-get="/mod/contacts/companies"
+       hx-trigger="keyup changed delay:300ms, search"
+       hx-target="#companies-rows"
+       hx-select="#companies-rows > *"
+       hx-swap="innerHTML"
+       style="max-width: 360px; margin-bottom: 12px;">
+
+<div class="surface" id="companies-rows" style="border-radius: 6px;">
+  {% include "companies/list_rows.html" %}
+</div>
+{% endblock %}

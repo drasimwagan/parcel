@@ -1,0 +1,10 @@
+{% for co in companies %}
+<a href="/mod/contacts/companies/{{ co.id }}" style="display:grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text);">
+  <div>
+    <div style="font-weight: 600;">{{ co.name }}</div>
+    <div class="muted" style="font-size: 12px;">{{ co.website or '' }}</div>
+  </div>
+</a>
+{% else %}
+<div class="muted" style="padding: 24px; text-align: center;">No companies.</div>
+{% endfor %}

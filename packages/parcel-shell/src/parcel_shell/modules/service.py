@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 from alembic import command
@@ -15,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from parcel_shell.modules.discovery import DiscoveredModule
 from parcel_shell.modules.models import InstalledModule
 from parcel_shell.rbac.models import Permission
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 _log = structlog.get_logger("parcel_shell.modules.service")
 
@@ -51,6 +55,7 @@ async def install_module(
     approve_capabilities: list[str],
     discovered: dict[str, DiscoveredModule],
     database_url: str,
+    app: FastAPI | None = None,
 ) -> InstalledModule:
     d = discovered.get(name)
     if d is None:
@@ -80,6 +85,23 @@ async def install_module(
             },
         )
         await db.execute(stmt)
+
+        # Attach the new permissions to the built-in `admin` role so admins
+        # inherit every permission across shell + modules. Matches the pattern
+        # the Phase 2 & 3 migrations use for shell permissions.
+        admin_row = (
+            await db.execute(sa_text("SELECT id FROM shell.roles WHERE name = 'admin'"))
+        ).first()
+        if admin_row is not None:
+            admin_id = admin_row[0]
+            for perm in d.module.permissions:
+                await db.execute(
+                    sa_text(
+                        "INSERT INTO shell.role_permissions (role_id, permission_name) "
+                        "VALUES (:rid, :name) ON CONFLICT DO NOTHING"
+                    ),
+                    {"rid": admin_id, "name": perm.name},
+                )
 
     # The module's migrations open their own connection; they must see the
     # CREATE SCHEMA we just issued. Flush + commit before running them.
@@ -115,6 +137,13 @@ async def install_module(
     )
     db.add(row)
     await db.flush()
+
+    # Phase 5: mount the module onto the running app, if provided.
+    if app is not None:
+        from parcel_shell.modules.integration import mount_module
+
+        mount_module(app, d)
+
     return row
 
 

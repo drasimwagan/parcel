@@ -46,12 +46,13 @@
   <div id="toast-region" style="position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px;"></div>
 
   {% if user %}
+  {% set active_item_href = active_href(active_path, sidebar) %}
   <div style="display:grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 48px);">
     <aside class="sidebar">
       {% for section in sidebar %}
       <div class="section-label">{{ section.label }}</div>
       {% for item in section.items %}
-      <a href="{{ item.href }}" class="{% if active_path == item.href or (item.href != '/' and active_path.startswith(item.href)) %}active{% endif %}">{{ item.label }}</a>
+      <a href="{{ item.href }}" class="{% if item.href == active_item_href %}active{% endif %}">{{ item.label }}</a>
       {% endfor %}
       {% endfor %}
     </aside>
