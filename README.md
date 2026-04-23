@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phase 1 complete — shell runs end-to-end with health endpoints, structured logging, and Alembic-managed Postgres schema. Auth, RBAC, and module loading land in Phases 2–3.
+**Status:** Pre-alpha. Phase 2 complete — auth + RBAC ship with users, Argon2id passwords, signed-cookie sessions, roles, and a permissions registry. Module loading lands in Phase 3.
 
 ## Vision
 
@@ -14,7 +14,7 @@ Parcel is what Odoo would look like if it were designed in 2026 around large-lan
 - **SDK** is the stable Python API every module imports.
 - **Modules** are pip-installable packages discovered via entry points. Each owns its own Postgres schema and Alembic migrations.
 
-## Running locally (Phase 1)
+## Running locally
 
 Requires Docker.
 
@@ -23,11 +23,29 @@ git clone https://github.com/drasimwagan/parcel.git
 cd parcel
 cp .env.example .env                       # edit PARCEL_SESSION_SECRET for non-dev use
 docker compose up -d postgres redis        # start dependencies
-docker compose run --rm shell migrate      # create the `shell` schema
+docker compose run --rm shell migrate      # create the `shell` schema + auth tables
 docker compose up -d shell                 # start the FastAPI service
 ```
 
-Smoke-check:
+Seed the first admin user (Phase 2):
+
+```bash
+docker compose run --rm shell bootstrap create-admin \
+  --email you@example.com --password 'at-least-twelve-chars'
+```
+
+Then log in via the JSON API:
+
+```bash
+curl -c cookies.txt -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"at-least-twelve-chars"}' \
+  http://localhost:8000/auth/login
+
+curl -b cookies.txt http://localhost:8000/auth/me
+curl -b cookies.txt http://localhost:8000/admin/users
+```
+
+Health endpoints (no auth required):
 
 ```bash
 curl http://localhost:8000/health/live     # → {"status":"ok"}
@@ -45,9 +63,9 @@ uv run ruff check
 uv run pyright packages/parcel-shell
 ```
 
-### What Phase 2+ will add
+### What Phase 3+ will add
 
-A `parcel bootstrap` CLI (Phase 6) to seed the first admin user, an admin UI (Phase 4), and module install flow (Phase 3). Today the shell is infrastructure only — there is no login or UI to point a browser at.
+Module discovery + install flow (Phase 3), a real admin UI on Jinja/Tailwind/HTMX (Phase 4), a demo Contacts module (Phase 5), a `parcel` CLI (Phase 6), and the AI module generator (Phase 7). Today there is no browser-facing UI beyond the JSON API; use `curl`, HTTPie, or a REST client.
 
 ## Roadmap
 

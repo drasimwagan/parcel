@@ -10,12 +10,12 @@ from parcel_shell.config import Settings
 
 
 @pytest.fixture
-def settings(database_url: str) -> Settings:
+def settings(migrations_applied: str) -> Settings:
     return Settings.model_validate(
         {
             "PARCEL_ENV": "dev",
             "PARCEL_SESSION_SECRET": "x" * 32,
-            "DATABASE_URL": database_url,
+            "DATABASE_URL": migrations_applied,
             "REDIS_URL": "redis://localhost:1",
             "PARCEL_LOG_LEVEL": "INFO",
         }

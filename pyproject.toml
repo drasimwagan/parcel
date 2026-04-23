@@ -44,7 +44,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S"]
+"**/tests/**" = ["S", "E501"]
+# FastAPI idiomatically uses Depends() as a parameter default.
+"**/router*.py" = ["B008"]
+"**/dependencies.py" = ["B008"]
 
 [tool.pyright]
 include = ["packages/*/src", "modules/*/src"]

@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 1 — Shell foundation done.** FastAPI `create_app` factory, pydantic-settings config, async SQLAlchemy engine + `shell_metadata`, Alembic baseline migration (`shell` schema), structlog with per-request `X-Request-ID` binding, `/health/live` + `/health/ready`, middleware-owned 500 error envelope, end-to-end `docker compose` flow, 24-test suite over a testcontainers Postgres.
+**Phase 2 — Auth + RBAC done.** Users (email + Argon2id), server-side sessions keyed by a signed `parcel_session` cookie, roles with a permission registry seam for Phase 3 modules, `/auth/*` and `/admin/*` JSON endpoints, and `python -m parcel_shell.bootstrap create-admin` (also reachable as `docker compose run --rm shell bootstrap`). Built-in `admin` role is seeded by migration 0002 with all 8 shell permissions and is protected from API mutation. 94-test suite over a testcontainers Postgres.
 
-Next: **Phase 2 — Auth + RBAC.** Start a new session; prompt: "Begin Phase 2: auth + RBAC per `CLAUDE.md` roadmap." Do not begin Phase 2 inside the Phase 1 commit cluster.
+Next: **Phase 3 — Module system.** Start a new session; prompt: "Begin Phase 3: module system per `CLAUDE.md` roadmap." Do not begin Phase 3 inside the Phase 2 commit cluster.
 
 ## Locked-in decisions
 
@@ -46,6 +46,13 @@ Next: **Phase 2 — Auth + RBAC.** Start a new session; prompt: "Begin Phase 2: 
 | Health endpoints | `/health/live` always 200; `/health/ready` pings pg + redis, returns 503 on degraded |
 | Migrations | Run explicitly via `docker compose run --rm shell migrate`, never on boot; `alembic_version` lives in `public` so downgrading past the shell-schema baseline is safe |
 | Container sync | `uv sync --all-packages` — workspace root has no direct deps on members |
+| Phase 2 shell deps | argon2-cffi, itsdangerous, email-validator |
+| Session TTLs | 7-day absolute, 24-hour idle; bumped on every authenticated request |
+| Session cookie | `parcel_session`; HttpOnly; SameSite=Lax; Secure when env != dev; signed with `PARCEL_SESSION_SECRET` (itsdangerous URLSafeSerializer) |
+| Built-in admin role | `admin` is seeded by migration 0002, `is_builtin=true`, holds all 8 shell permissions; the API rejects mutating or deleting it |
+| Failed logins | Logged as `auth.login_failed` with reason (`no_user` / `bad_password` / `inactive`); no rate limiting in Phase 2 |
+| Request DB session | `get_session` dep commits on success, rolls back on exception — endpoints don't call commit themselves |
+| Shell permissions (8) | `users.read`, `users.write`, `users.roles.assign`, `roles.read`, `roles.write`, `sessions.read`, `sessions.revoke`, `permissions.read` |
 
 ## Repository layout
 
@@ -91,8 +98,8 @@ contacts = "parcel_mod_contacts:module"
 |---|---|---|
 | 0 | ✅ done | Repo scaffold (this commit) |
 | 1 | ✅ done | Shell foundation: FastAPI app, config, async SQLAlchemy, Alembic for shell, logging, health, docker-compose end-to-end |
-| 2 | ⏭ next | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
-| 3 |  | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
+| 2 | ✅ done | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
+| 3 | ⏭ next | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
 | 4 |  | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
 | 5 |  | Contacts demo module end-to-end |
 | 6 |  | SDK polish + `parcel` CLI |
