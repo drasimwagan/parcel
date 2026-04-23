@@ -1,11 +1,11 @@
-"""Parcel SDK — the only package modules should import.
+"""Parcel SDK — the stable Python API every Parcel module imports.
 
-This surface is versioned separately from the shell and is the stable contract
-that third-party (and AI-generated) modules depend on.
-
-Phase 0: package skeleton only. Public API lands in Phase 6.
+Phase 3 surface: Module, Permission, run_async_migrations.
 """
 
 from __future__ import annotations
 
-__version__ = "0.0.0"
+from parcel_sdk.module import Module, Permission
+
+__all__ = ["Module", "Permission", "__version__"]
+__version__ = "0.1.0"
