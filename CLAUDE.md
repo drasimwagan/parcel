@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 0 — Repository scaffolded. No application code yet.**
+**Phase 1 — Shell foundation done.** FastAPI `create_app` factory, pydantic-settings config, async SQLAlchemy engine + `shell_metadata`, Alembic baseline migration (`shell` schema), structlog with per-request `X-Request-ID` binding, `/health/live` + `/health/ready`, middleware-owned 500 error envelope, end-to-end `docker compose` flow, 24-test suite over a testcontainers Postgres.
 
-Next: **Phase 1 — Shell foundation.** Start a new session; prompt: "Begin Phase 1: shell foundation per `CLAUDE.md` roadmap." Do not begin Phase 1 inside the Phase 0 commit.
+Next: **Phase 2 — Auth + RBAC.** Start a new session; prompt: "Begin Phase 2: auth + RBAC per `CLAUDE.md` roadmap." Do not begin Phase 2 inside the Phase 1 commit cluster.
 
 ## Locked-in decisions
 
@@ -40,6 +40,12 @@ Next: **Phase 1 — Shell foundation.** Start a new session; prompt: "Begin Phas
 | Dev experience | `parcel` CLI (`new-module`, `install`, `migrate`, `dev`, `serve`) + uvicorn hot reload |
 | Deployment | Single `docker compose up` (shell + PG + Redis). Bare-metal & k8s deferred |
 | License | MIT |
+| Phase 1 shell deps | fastapi, uvicorn[standard], sqlalchemy[asyncio], asyncpg, alembic, redis, pydantic, pydantic-settings, structlog |
+| Phase 1 test deps | testcontainers[postgres], asgi-lifespan |
+| Logging | structlog; ConsoleRenderer in `dev`, JSONRenderer in `staging`/`prod`; `request_id` bound via contextvar |
+| Health endpoints | `/health/live` always 200; `/health/ready` pings pg + redis, returns 503 on degraded |
+| Migrations | Run explicitly via `docker compose run --rm shell migrate`, never on boot; `alembic_version` lives in `public` so downgrading past the shell-schema baseline is safe |
+| Container sync | `uv sync --all-packages` — workspace root has no direct deps on members |
 
 ## Repository layout
 
@@ -84,8 +90,8 @@ contacts = "parcel_mod_contacts:module"
 | Phase | Status | Goal |
 |---|---|---|
 | 0 | ✅ done | Repo scaffold (this commit) |
-| 1 | ⏭ next | Shell foundation: FastAPI app, config, async SQLAlchemy, Alembic for shell, logging, health, docker-compose end-to-end |
-| 2 |  | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
+| 1 | ✅ done | Shell foundation: FastAPI app, config, async SQLAlchemy, Alembic for shell, logging, health, docker-compose end-to-end |
+| 2 | ⏭ next | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
 | 3 |  | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
 | 4 |  | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
 | 5 |  | Contacts demo module end-to-end |

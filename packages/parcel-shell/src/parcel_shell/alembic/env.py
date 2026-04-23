@@ -17,9 +17,7 @@ if config.config_file_name is not None:
 
 # Prefer env var in production; tests set sqlalchemy.url directly.
 env_url = os.getenv("DATABASE_URL")
-if env_url and not config.get_main_option("sqlalchemy.url", "").startswith(
-    "postgresql+asyncpg://"
-):
+if env_url and not config.get_main_option("sqlalchemy.url", "").startswith("postgresql+asyncpg://"):
     config.set_main_option("sqlalchemy.url", env_url)
 
 target_metadata = shell_metadata

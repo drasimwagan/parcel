@@ -37,11 +37,11 @@ async def test_lifespan_attaches_and_disposes_state(settings: Settings) -> None:
 
 async def test_live_endpoint_via_factory(settings: Settings) -> None:
     app = create_app(settings=settings)
-    async with LifespanManager(app):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://t"
-        ) as c:
-            r = await c.get("/health/live")
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c,
+    ):
+        r = await c.get("/health/live")
     assert r.status_code == 200
 
 
@@ -54,12 +54,14 @@ async def test_unhandled_exception_returns_500_with_request_id(
     async def boom() -> None:
         raise RuntimeError("kaboom")
 
-    async with LifespanManager(app):
-        async with AsyncClient(
+    async with (
+        LifespanManager(app),
+        AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=False),
             base_url="http://t",
-        ) as c:
-            r = await c.get("/boom", headers={"X-Request-ID": "rid-9"})
+        ) as c,
+    ):
+        r = await c.get("/boom", headers={"X-Request-ID": "rid-9"})
     assert r.status_code == 500
     body = r.json()
     assert body["error"] == "internal_server_error"

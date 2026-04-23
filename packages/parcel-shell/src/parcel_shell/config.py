@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     env: Literal["dev", "staging", "prod"] = Field(default="dev", alias="PARCEL_ENV")
-    host: str = Field(default="0.0.0.0", alias="PARCEL_HOST")
+    host: str = Field(default="0.0.0.0", alias="PARCEL_HOST")  # noqa: S104
     port: int = Field(default=8000, alias="PARCEL_PORT")
     session_secret: str = Field(alias="PARCEL_SESSION_SECRET")
     database_url: str = Field(alias="DATABASE_URL")
@@ -41,4 +41,5 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    # BaseSettings populates required fields from env vars at runtime; pyright can't see that.
+    return Settings()  # pyright: ignore[reportCallIssue]

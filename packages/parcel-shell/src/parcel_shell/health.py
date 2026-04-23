@@ -20,6 +20,7 @@ async def live() -> dict[str, str]:
 
 async def _check_db(engine: Any) -> str:
     try:
+
         async def _run() -> None:
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
@@ -42,9 +43,7 @@ async def _check_redis(redis: Any) -> str:
 async def ready(request: Request) -> JSONResponse:
     engine = request.app.state.engine
     redis = request.app.state.redis
-    db_status, redis_status = await asyncio.gather(
-        _check_db(engine), _check_redis(redis)
-    )
+    db_status, redis_status = await asyncio.gather(_check_db(engine), _check_redis(redis))
     checks = {"db": db_status, "redis": redis_status}
     if all(v == "ok" for v in checks.values()):
         return JSONResponse({"status": "ok", "checks": checks})
