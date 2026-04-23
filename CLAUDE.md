@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 2 — Auth + RBAC done.** Users (email + Argon2id), server-side sessions keyed by a signed `parcel_session` cookie, roles with a permission registry seam for Phase 3 modules, `/auth/*` and `/admin/*` JSON endpoints, and `python -m parcel_shell.bootstrap create-admin` (also reachable as `docker compose run --rm shell bootstrap`). Built-in `admin` role is seeded by migration 0002 with all 8 shell permissions and is protected from API mutation. 94-test suite over a testcontainers Postgres.
+**Phase 3 — Module system done.** `parcel-sdk` exposes `Module`, `Permission`, and a `run_async_migrations` helper for module `env.py` files. Shell discovers modules via the `parcel.modules` entry-point group; admins explicitly install/upgrade/uninstall via `/admin/modules/*` (4 new permissions, all on the built-in `admin` role). Each installed module owns a `mod_<name>` schema; migrations run in-process via `alembic.command.upgrade`. Orphaned rows (package pip-uninstalled while row exists) flip to `is_active=false` at boot with a warning; shell never refuses to boot because of a module issue. 122-test suite over a testcontainers Postgres.
 
-Next: **Phase 3 — Module system.** Start a new session; prompt: "Begin Phase 3: module system per `CLAUDE.md` roadmap." Do not begin Phase 3 inside the Phase 2 commit cluster.
+Next: **Phase 4 — Admin UI shell.** Start a new session; prompt: "Begin Phase 4: admin UI shell per `CLAUDE.md` roadmap." Do not begin Phase 4 inside the Phase 3 commit cluster.
 
 ## Locked-in decisions
 
@@ -53,6 +53,12 @@ Next: **Phase 3 — Module system.** Start a new session; prompt: "Begin Phase 3
 | Failed logins | Logged as `auth.login_failed` with reason (`no_user` / `bad_password` / `inactive`); no rate limiting in Phase 2 |
 | Request DB session | `get_session` dep commits on success, rolls back on exception — endpoints don't call commit themselves |
 | Shell permissions (8) | `users.read`, `users.write`, `users.roles.assign`, `roles.read`, `roles.write`, `sessions.read`, `sessions.revoke`, `permissions.read` |
+| Phase 3 SDK deps | sqlalchemy[asyncio], alembic (runtime, so a module's `env.py` can import the helper) |
+| Module install model | Explicit — discovery lists candidates; admin calls `POST /admin/modules/install` to activate. `approve_capabilities` must exactly equal `module.capabilities`. |
+| Module uninstall | Soft by default (`is_active=false`); `?drop_data=true` runs `alembic downgrade base`, drops `mod_<name>` schema, removes the module's permissions and the row |
+| Module migrations | In-process `alembic.command.upgrade` against the module's `alembic.ini`; per-module `alembic_version` lives inside the module's own schema |
+| Module orphans at boot | Warn + flip to `is_active=false`; shell never refuses to boot |
+| Shell permissions (12) | Phase 2's 8 + `modules.{read,install,upgrade,uninstall}` |
 
 ## Repository layout
 
@@ -99,8 +105,8 @@ contacts = "parcel_mod_contacts:module"
 | 0 | ✅ done | Repo scaffold (this commit) |
 | 1 | ✅ done | Shell foundation: FastAPI app, config, async SQLAlchemy, Alembic for shell, logging, health, docker-compose end-to-end |
 | 2 | ✅ done | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
-| 3 | ⏭ next | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
-| 4 |  | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
+| 3 | ✅ done | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
+| 4 | ⏭ next | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
 | 5 |  | Contacts demo module end-to-end |
 | 6 |  | SDK polish + `parcel` CLI |
 | 7 |  | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |

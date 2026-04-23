@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phase 2 complete — auth + RBAC ship with users, Argon2id passwords, signed-cookie sessions, roles, and a permissions registry. Module loading lands in Phase 3.
+**Status:** Pre-alpha. Phase 3 complete — shell discovers modules via entry points, admins can install/upgrade/uninstall them through `/admin/modules/*`, each module owns its own Postgres schema and Alembic migrations. The Contacts demo module lands in Phase 5.
 
 ## Vision
 
@@ -63,9 +63,23 @@ uv run ruff check
 uv run pyright packages/parcel-shell
 ```
 
-### What Phase 3+ will add
+### Inspect module state
 
-Module discovery + install flow (Phase 3), a real admin UI on Jinja/Tailwind/HTMX (Phase 4), a demo Contacts module (Phase 5), a `parcel` CLI (Phase 6), and the AI module generator (Phase 7). Today there is no browser-facing UI beyond the JSON API; use `curl`, HTTPie, or a REST client.
+```bash
+curl -b cookies.txt http://localhost:8000/admin/modules
+```
+
+Out of the box this returns `[]` — there are no modules yet. Once Phase 5 ships a real Contacts module, it will appear here and can be installed with:
+
+```bash
+curl -b cookies.txt -H 'content-type: application/json' \
+  -d '{"name":"contacts","approve_capabilities":[]}' \
+  http://localhost:8000/admin/modules/install
+```
+
+### What Phase 4+ will add
+
+Admin UI on Jinja/Tailwind/HTMX (Phase 4), a demo Contacts module (Phase 5), a `parcel` CLI (Phase 6), and the AI module generator (Phase 7).
 
 ## Roadmap
 

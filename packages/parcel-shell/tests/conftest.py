@@ -123,6 +123,129 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
         yield c
 
 
+# ── Phase 3 fixtures ────────────────────────────────────────────────────
+
+_FIXTURE_MODULE_SRC = (Path(__file__).parent / "_fixtures" / "test_module" / "src").resolve()
+
+
+@pytest.fixture(scope="session")
+def test_module_on_path() -> Iterator[None]:
+    """Put the fixture module's src/ on sys.path for the session."""
+    import sys
+
+    added = str(_FIXTURE_MODULE_SRC)
+    if added not in sys.path:
+        sys.path.insert(0, added)
+    yield
+
+
+@pytest.fixture
+def discovered_test_module(test_module_on_path: None):
+    """Load the fixture module fresh and return a DiscoveredModule."""
+    import importlib
+    import sys
+
+    for mod_name in list(sys.modules):
+        if mod_name.startswith("parcel_mod_test"):
+            del sys.modules[mod_name]
+    mod_pkg = importlib.import_module("parcel_mod_test")
+
+    from parcel_shell.modules.discovery import DiscoveredModule
+
+    return DiscoveredModule(
+        module=mod_pkg.module,
+        distribution_name="parcel-mod-test",
+        distribution_version="0.1.0",
+    )
+
+
+@pytest.fixture
+def patch_entry_points(monkeypatch, discovered_test_module):
+    """Make discovery return the fixture module."""
+    from importlib.metadata import EntryPoint
+
+    import parcel_shell.modules.discovery as disco
+
+    synthetic = EntryPoint(
+        name="test",
+        value="parcel_mod_test:module",
+        group="parcel.modules",
+    )
+
+    def fake_entry_points(*, group: str):
+        return [synthetic] if group == "parcel.modules" else []
+
+    monkeypatch.setattr(disco, "entry_points", fake_entry_points)
+    return discovered_test_module
+
+
+@pytest.fixture
+def empty_entry_points(monkeypatch):
+    """Make discovery return nothing."""
+    import parcel_shell.modules.discovery as disco
+
+    def fake_entry_points(*, group: str):
+        return []
+
+    monkeypatch.setattr(disco, "entry_points", fake_entry_points)
+
+
+# For module router tests that need real commits (the service commits mid-request
+# so alembic sees the schema). Uses the production get_session (which commits on
+# success) instead of the savepoint-wrapped db_session.
+
+
+@pytest.fixture
+async def committing_app(settings: Settings) -> AsyncIterator[Any]:
+    from parcel_shell.app import create_app
+
+    fastapi_app = create_app(settings=settings)
+    async with LifespanManager(fastapi_app):
+        yield fastapi_app
+
+
+@pytest.fixture
+async def committing_client(committing_app: Any) -> AsyncIterator[AsyncClient]:
+    async with AsyncClient(
+        transport=ASGITransport(app=committing_app, raise_app_exceptions=False),
+        base_url="http://t",
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+async def committing_admin(committing_client: AsyncClient, settings: Settings):
+    """Create a fresh admin user, log in, clean up after."""
+    import uuid
+
+    from sqlalchemy import select
+
+    from parcel_shell.bootstrap import create_admin_user
+    from parcel_shell.rbac.models import User
+
+    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    email = f"admin-{uuid.uuid4().hex[:8]}@test.example.com"
+    password = "password-1234-long"
+
+    try:
+        async with factory() as s:
+            await create_admin_user(s, email=email, password=password, force=False)
+            await s.commit()
+
+        r = await committing_client.post("/auth/login", json={"email": email, "password": password})
+        assert r.status_code == 200, r.text
+        yield committing_client
+    finally:
+        async with factory() as s:
+            user = (await s.execute(select(User).where(User.email == email))).scalar_one_or_none()
+            if user is not None:
+                await s.delete(user)
+                await s.commit()
+        await engine.dispose()
+
+
 # ── Factories ────────────────────────────────────────────────────────────
 
 

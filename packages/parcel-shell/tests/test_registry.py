@@ -33,7 +33,7 @@ def test_register_duplicate_different_description_raises() -> None:
         reg.register("foo.read", "Something else")
 
 
-def test_register_shell_permissions_adds_eight() -> None:
+def test_register_shell_permissions() -> None:
     reg = PermissionRegistry()
     register_shell_permissions(reg)
     names = {p.name for p in reg.all()}
@@ -46,6 +46,10 @@ def test_register_shell_permissions_adds_eight() -> None:
         "sessions.read",
         "sessions.revoke",
         "permissions.read",
+        "modules.read",
+        "modules.install",
+        "modules.upgrade",
+        "modules.uninstall",
     }
 
 

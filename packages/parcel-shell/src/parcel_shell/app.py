@@ -13,6 +13,8 @@ from parcel_shell.db import create_engine, create_sessionmaker
 from parcel_shell.health import router as health_router
 from parcel_shell.logging import configure_logging
 from parcel_shell.middleware import RequestIdMiddleware
+from parcel_shell.modules import service as module_service
+from parcel_shell.modules.router_admin import router as modules_router
 from parcel_shell.rbac.registry import registry as permission_registry
 from parcel_shell.rbac.router_admin import router as admin_router
 
@@ -38,6 +40,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await permission_registry.sync_to_db(s)
             await s.commit()
 
+        # Flip previously-installed modules whose package is no longer
+        # entry-point-discoverable to is_active=false.
+        async with sessionmaker() as s:
+            await module_service.sync_on_boot(s)
+            await s.commit()
+
         log.info("shell.startup", env=settings.env)
         try:
             yield
@@ -51,5 +59,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(modules_router)
 
     return app

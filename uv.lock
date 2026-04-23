@@ -614,6 +614,16 @@ source = { editable = "modules/contacts" }
 name = "parcel-sdk"
 version = "0.0.0"
 source = { editable = "packages/parcel-sdk" }
+dependencies = [
+    { name = "alembic" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+]
 
 [[package]]
 name = "parcel-shell"

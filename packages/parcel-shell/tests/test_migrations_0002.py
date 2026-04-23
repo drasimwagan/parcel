@@ -18,18 +18,34 @@ def _cfg(url: str) -> Config:
 
 
 async def test_0002_creates_expected_tables(database_url: str, engine: AsyncEngine) -> None:
-    await asyncio.to_thread(command.upgrade, _cfg(database_url), "head")
-    async with engine.connect() as conn:
-        rows = (
-            await conn.execute(
-                text(
-                    "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'shell' ORDER BY table_name"
+    cfg = _cfg(database_url)
+    # Roll the DB back to before 0002, then apply exactly 0002 so the table set
+    # is deterministic regardless of which test ran first.
+    await asyncio.to_thread(command.upgrade, cfg, "head")
+    await asyncio.to_thread(command.downgrade, cfg, "0001")
+    await asyncio.to_thread(command.upgrade, cfg, "0002")
+    try:
+        async with engine.connect() as conn:
+            rows = (
+                await conn.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = 'shell' ORDER BY table_name"
+                    )
                 )
-            )
-        ).all()
-    names = {r[0] for r in rows}
-    assert names == {"users", "sessions", "permissions", "roles", "user_roles", "role_permissions"}
+            ).all()
+        names = {r[0] for r in rows}
+        assert names == {
+            "users",
+            "sessions",
+            "permissions",
+            "roles",
+            "user_roles",
+            "role_permissions",
+        }
+    finally:
+        # Restore state for subsequent tests.
+        await asyncio.to_thread(command.upgrade, cfg, "head")
 
 
 async def test_0002_seeds_admin_role_with_all_shell_permissions(
@@ -53,7 +69,8 @@ async def test_0002_seeds_admin_role_with_all_shell_permissions(
                 {"rid": role.id},
             )
         ).all()
-    assert {r[0] for r in rows} == {
+    # Phase 2 seeded these 8; later migrations may add more to admin.
+    assert {
         "users.read",
         "users.write",
         "roles.read",
@@ -62,7 +79,7 @@ async def test_0002_seeds_admin_role_with_all_shell_permissions(
         "sessions.read",
         "sessions.revoke",
         "permissions.read",
-    }
+    } <= {r[0] for r in rows}
 
 
 async def test_0002_downgrade_removes_tables(database_url: str, engine: AsyncEngine) -> None:

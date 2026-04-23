@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    # Phase 6 will populate. Keeping empty to avoid premature coupling.
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14",
 ]
 
 [build-system]
