@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from parcel_sdk.module import Module
 
 
-def run_async_migrations(module: "Module") -> None:
+def run_async_migrations(module: Module) -> None:
     """Run the calling module's migrations scoped to its own `mod_<name>` schema.
 
     Reads `sqlalchemy.url` from the alembic config first, falling back to the
@@ -31,16 +31,14 @@ def run_async_migrations(module: "Module") -> None:
     cfg = context.config
     database_url = cfg.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL")
     if not database_url:
-        raise RuntimeError(
-            "DATABASE_URL not set and no sqlalchemy.url in alembic config"
-        )
+        raise RuntimeError("DATABASE_URL not set and no sqlalchemy.url in alembic config")
     cfg.set_main_option("sqlalchemy.url", database_url)
     schema = f"mod_{module.name}"
 
     asyncio.run(_run(module, schema))
 
 
-async def _run(module: "Module", schema: str) -> None:
+async def _run(module: Module, schema: str) -> None:
     cfg = context.config
     connectable = async_engine_from_config(
         cfg.get_section(cfg.config_ini_section, {}),
@@ -53,7 +51,7 @@ async def _run(module: "Module", schema: str) -> None:
     await connectable.dispose()
 
 
-def _do(connection: Connection, module: "Module", schema: str) -> None:
+def _do(connection: Connection, module: Module, schema: str) -> None:
     context.configure(
         connection=connection,
         target_metadata=module.metadata,

@@ -5,12 +5,13 @@ the install flow commits mid-request so alembic sees the schema. Each test
 cleans up the fixture module state via hard-uninstall so later tests see a
 clean slate.
 """
+
 from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from parcel_shell.config import Settings
 

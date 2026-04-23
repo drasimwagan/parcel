@@ -7,7 +7,8 @@ import structlog
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import select, text as sa_text
+from sqlalchemy import select
+from sqlalchemy import text as sa_text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,8 +59,7 @@ async def install_module(
         raise ModuleAlreadyInstalled(name)
     if set(approve_capabilities) != set(d.module.capabilities):
         raise CapabilityMismatch(
-            f"declared={sorted(d.module.capabilities)!r} "
-            f"approved={sorted(approve_capabilities)!r}"
+            f"declared={sorted(d.module.capabilities)!r} approved={sorted(approve_capabilities)!r}"
         )
 
     schema = f"mod_{name}"
@@ -198,10 +198,10 @@ async def sync_on_boot(
         discovered = {d.module.name: d for d in discover_modules()}
 
     rows = (
-        await db.execute(
-            select(InstalledModule).where(InstalledModule.is_active.is_(True))
-        )
-    ).scalars().all()
+        (await db.execute(select(InstalledModule).where(InstalledModule.is_active.is_(True))))
+        .scalars()
+        .all()
+    )
     now = datetime.now(UTC)
     for row in rows:
         if row.name not in discovered:

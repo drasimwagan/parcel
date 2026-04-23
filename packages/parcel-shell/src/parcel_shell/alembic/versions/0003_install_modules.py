@@ -5,6 +5,7 @@ Revises: 0002
 Create Date: 2026-04-23 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -30,9 +31,7 @@ def upgrade() -> None:
         "installed_modules",
         sa.Column("name", sa.Text(), primary_key=True),
         sa.Column("version", sa.Text(), nullable=False),
-        sa.Column(
-            "is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")
-        ),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column(
             "capabilities",
             JSONB(),
@@ -57,31 +56,29 @@ def upgrade() -> None:
         schema="shell",
     )
 
-    op.bulk_insert(
-        sa.table(
-            "permissions",
-            sa.column("name", sa.Text()),
-            sa.column("description", sa.Text()),
-            sa.column("module", sa.Text()),
-            schema="shell",
-        ),
-        [
-            {"name": name, "description": description, "module": "shell"}
-            for name, description in MODULE_PERMISSIONS
-        ],
-    )
-
+    # Idempotent inserts: an earlier shell boot (after the registry was extended
+    # to include `modules.*` but before this migration ran) may have already
+    # upserted these permissions via lifespan.sync_to_db.
     conn = op.get_bind()
-    admin_id = conn.execute(
-        sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")
-    ).scalar_one()
-    conn.execute(
-        sa.text(
-            "INSERT INTO shell.role_permissions (role_id, permission_name) "
-            "VALUES (:rid, :name)"
-        ),
-        [{"rid": admin_id, "name": n} for n, _ in MODULE_PERMISSIONS],
-    )
+    for name, description in MODULE_PERMISSIONS:
+        conn.execute(
+            sa.text(
+                "INSERT INTO shell.permissions (name, description, module) "
+                "VALUES (:name, :description, 'shell') "
+                "ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description"
+            ),
+            {"name": name, "description": description},
+        )
+
+    admin_id = conn.execute(sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")).scalar_one()
+    for name, _ in MODULE_PERMISSIONS:
+        conn.execute(
+            sa.text(
+                "INSERT INTO shell.role_permissions (role_id, permission_name) "
+                "VALUES (:rid, :name) ON CONFLICT DO NOTHING"
+            ),
+            {"rid": admin_id, "name": name},
+        )
 
 
 def downgrade() -> None:

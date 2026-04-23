@@ -36,9 +36,7 @@ async def test_0003_seeds_module_permissions_on_admin(
 ) -> None:
     await asyncio.to_thread(command.upgrade, _cfg(database_url), "head")
     async with engine.connect() as conn:
-        row = (
-            await conn.execute(text("SELECT id FROM shell.roles WHERE name = 'admin'"))
-        ).one()
+        row = (await conn.execute(text("SELECT id FROM shell.roles WHERE name = 'admin'"))).one()
         perms = (
             await conn.execute(
                 text(

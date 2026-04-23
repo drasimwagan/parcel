@@ -36,7 +36,12 @@ async def test_0002_creates_expected_tables(database_url: str, engine: AsyncEngi
             ).all()
         names = {r[0] for r in rows}
         assert names == {
-            "users", "sessions", "permissions", "roles", "user_roles", "role_permissions"
+            "users",
+            "sessions",
+            "permissions",
+            "roles",
+            "user_roles",
+            "role_permissions",
         }
     finally:
         # Restore state for subsequent tests.

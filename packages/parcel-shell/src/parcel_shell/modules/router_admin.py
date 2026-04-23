@@ -88,9 +88,7 @@ async def install(
     except service.CapabilityMismatch as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "capability_mismatch") from e
     except service.ModuleMigrationFailed as e:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, "module_install_failed"
-        ) from e
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "module_install_failed") from e
     return _summary(row.name, row, index.get(row.name))
 
 
@@ -110,9 +108,7 @@ async def upgrade(
     except service.ModuleNotDiscovered as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "module_not_found") from e
     except service.ModuleMigrationFailed as e:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, "module_upgrade_failed"
-        ) from e
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "module_upgrade_failed") from e
     return _summary(row.name, row, index.get(row.name))
 
 

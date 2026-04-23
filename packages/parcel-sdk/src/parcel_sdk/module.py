@@ -21,4 +21,4 @@ class Module:
     permissions: tuple[Permission, ...] = ()
     capabilities: tuple[str, ...] = ()
     alembic_ini: Path | None = None
-    metadata: "MetaData | None" = None
+    metadata: MetaData | None = None

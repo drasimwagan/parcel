@@ -4,6 +4,7 @@ These tests commit real transactions against the testcontainers Postgres,
 because the module's alembic migrations open their own connection and must
 see our session's writes. Each test cleans up by running hard-uninstall.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -209,9 +210,7 @@ async def test_uninstall_hard_drops_everything(
             )
         ).scalar_one_or_none()
         perm = (
-            await conn.execute(
-                text("SELECT name FROM shell.permissions WHERE name = 'test.read'")
-            )
+            await conn.execute(text("SELECT name FROM shell.permissions WHERE name = 'test.read'"))
         ).scalar_one_or_none()
     assert schema is None
     assert perm is None

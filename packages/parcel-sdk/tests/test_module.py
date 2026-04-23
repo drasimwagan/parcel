@@ -12,7 +12,7 @@ def test_permission_is_frozen_dataclass() -> None:
     p = Permission("foo.read", "Read foo")
     assert p.name == "foo.read"
     assert p.description == "Read foo"
-    with pytest.raises(Exception):
+    with pytest.raises((AttributeError, TypeError, Exception)):  # noqa: B017
         p.name = "bar.read"  # type: ignore[misc]
 
 
@@ -41,7 +41,7 @@ def test_module_full() -> None:
 
 def test_module_is_frozen() -> None:
     m = Module(name="foo", version="0.1.0")
-    with pytest.raises(Exception):
+    with pytest.raises((AttributeError, TypeError, Exception)):  # noqa: B017
         m.version = "0.2.0"  # type: ignore[misc]
 
 

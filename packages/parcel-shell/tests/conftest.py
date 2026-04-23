@@ -125,9 +125,7 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
 
 # ── Phase 3 fixtures ────────────────────────────────────────────────────
 
-_FIXTURE_MODULE_SRC = (
-    Path(__file__).parent / "_fixtures" / "test_module" / "src"
-).resolve()
+_FIXTURE_MODULE_SRC = (Path(__file__).parent / "_fixtures" / "test_module" / "src").resolve()
 
 
 @pytest.fixture(scope="session")
@@ -196,6 +194,7 @@ def empty_entry_points(monkeypatch):
 # so alembic sees the schema). Uses the production get_session (which commits on
 # success) instead of the savepoint-wrapped db_session.
 
+
 @pytest.fixture
 async def committing_app(settings: Settings) -> AsyncIterator[Any]:
     from parcel_shell.app import create_app
@@ -218,6 +217,7 @@ async def committing_client(committing_app: Any) -> AsyncIterator[AsyncClient]:
 async def committing_admin(committing_client: AsyncClient, settings: Settings):
     """Create a fresh admin user, log in, clean up after."""
     import uuid
+
     from sqlalchemy import select
 
     from parcel_shell.bootstrap import create_admin_user
@@ -234,16 +234,12 @@ async def committing_admin(committing_client: AsyncClient, settings: Settings):
             await create_admin_user(s, email=email, password=password, force=False)
             await s.commit()
 
-        r = await committing_client.post(
-            "/auth/login", json={"email": email, "password": password}
-        )
+        r = await committing_client.post("/auth/login", json={"email": email, "password": password})
         assert r.status_code == 200, r.text
         yield committing_client
     finally:
         async with factory() as s:
-            user = (
-                await s.execute(select(User).where(User.email == email))
-            ).scalar_one_or_none()
+            user = (await s.execute(select(User).where(User.email == email))).scalar_one_or_none()
             if user is not None:
                 await s.delete(user)
                 await s.commit()
