@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 3 — Module system done.** `parcel-sdk` exposes `Module`, `Permission`, and a `run_async_migrations` helper for module `env.py` files. Shell discovers modules via the `parcel.modules` entry-point group; admins explicitly install/upgrade/uninstall via `/admin/modules/*` (4 new permissions, all on the built-in `admin` role). Each installed module owns a `mod_<name>` schema; migrations run in-process via `alembic.command.upgrade`. Orphaned rows (package pip-uninstalled while row exists) flip to `is_active=false` at boot with a warning; shell never refuses to boot because of a module issue. 122-test suite over a testcontainers Postgres.
+**Phase 4 — Admin UI shell done.** Server-rendered Jinja templates + Tailwind (Play CDN) + HTMX + Alpine.js. HTML routes at `/login`, `/`, `/profile`, `/users/*`, `/roles/*`, `/modules/*`. Unauthenticated HTML requests redirect to `/login?next=<path>` via `HTMLRedirect` exception handled globally. Three user-selectable themes (`plain` default, `blue`, `dark`) swapped via `[data-theme]` on `<html>`, persisted to localStorage. Flash messages ride in a signed `parcel_flash` cookie; middleware pops + clears. JSON APIs at `/auth/*`, `/admin/*`, `/health/*` unchanged. 149-test suite.
 
-Next: **Phase 4 — Admin UI shell.** Start a new session; prompt: "Begin Phase 4: admin UI shell per `CLAUDE.md` roadmap." Do not begin Phase 4 inside the Phase 3 commit cluster.
+Next: **Phase 5 — Contacts demo module.** Start a new session; prompt: "Begin Phase 5: Contacts module per `CLAUDE.md` roadmap." Do not begin Phase 5 inside the Phase 4 commit cluster.
 
 ## Locked-in decisions
 
@@ -59,6 +59,13 @@ Next: **Phase 4 — Admin UI shell.** Start a new session; prompt: "Begin Phase 
 | Module migrations | In-process `alembic.command.upgrade` against the module's `alembic.ini`; per-module `alembic_version` lives inside the module's own schema |
 | Module orphans at boot | Warn + flip to `is_active=false`; shell never refuses to boot |
 | Shell permissions (12) | Phase 2's 8 + `modules.{read,install,upgrade,uninstall}` |
+| Phase 4 shell deps | jinja2, python-multipart |
+| Phase 4 client deps | Tailwind (Play CDN), HTMX (2.x CDN), Alpine.js (3.x CDN) — no npm build step |
+| HTML auth | Separate `current_user_html` dep raises `HTMLRedirect("/login?next=…")`; a global exception handler renders it as a 303 |
+| Themes | Three user-selectable (`plain` default / `blue` / `dark`), `[data-theme]` on `<html>`, persisted to `localStorage["parcel_theme"]` |
+| Flash messages | Signed `parcel_flash` HTTP-only cookie (itsdangerous), read + cleared by FlashMiddleware |
+| URL boundary | HTML at `/`, `/login`, `/profile`, `/users`, `/roles`, `/modules`; JSON stays at `/auth/*`, `/admin/*`, `/health/*` |
+| CSRF | Phase 4 relies on Phase 2's `SameSite=Lax` cookie; token middleware deferred |
 
 ## Repository layout
 
@@ -106,8 +113,8 @@ contacts = "parcel_mod_contacts:module"
 | 1 | ✅ done | Shell foundation: FastAPI app, config, async SQLAlchemy, Alembic for shell, logging, health, docker-compose end-to-end |
 | 2 | ✅ done | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
 | 3 | ✅ done | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
-| 4 | ⏭ next | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
-| 5 |  | Contacts demo module end-to-end |
+| 4 | ✅ done | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
+| 5 | ⏭ next | Contacts demo module end-to-end |
 | 6 |  | SDK polish + `parcel` CLI |
 | 7 |  | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |

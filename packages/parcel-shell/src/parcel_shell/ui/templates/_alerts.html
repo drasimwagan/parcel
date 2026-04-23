@@ -1,0 +1,3 @@
+{% if request.state.flash %}
+<div class="alert {{ request.state.flash.kind }}">{{ request.state.flash.msg }}</div>
+{% endif %}

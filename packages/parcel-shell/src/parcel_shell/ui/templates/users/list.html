@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% from "_macros.html" import user_row %}
+{% block title %}Users — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">Users</h2>
+  <a class="btn primary" href="/users/new">+ New user</a>
+</div>
+<table class="table">
+  <thead><tr><th>Email</th><th>Status</th><th>Roles</th><th></th></tr></thead>
+  <tbody id="users-tbody">
+    {% for u in users %}{{ user_row(u) }}{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "_base.html" %}
+{% block title %}{{ target_user.email }} — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">{{ target_user.email }}</h2>
+  <a href="/users" class="btn">← All users</a>
+</div>
+
+<div class="surface" style="padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+  <form hx-post="/users/{{ target_user.id }}/edit" hx-swap="none" hx-on::after-request="if(event.detail.successful) window.location.reload()">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Email</label>
+    <input class="input" type="email" name="email" required value="{{ target_user.email }}" style="margin-bottom: 12px;">
+    <label style="display:flex; align-items:center; gap: 6px; font-size: 13px; margin-bottom: 16px;">
+      <input type="checkbox" name="is_active" {% if target_user.is_active %}checked{% endif %}>
+      Active
+    </label>
+    <button class="btn primary" type="submit">Save</button>
+    <button class="btn danger" type="button" hx-post="/users/{{ target_user.id }}/delete" hx-confirm="Deactivate this user?" hx-on::after-request="if(event.detail.successful) window.location='/users'" style="margin-left: 8px;">Deactivate</button>
+  </form>
+</div>
+
+{% include "users/_roles_block.html" %}
+
+<p><a href="/users/{{ target_user.id }}/sessions">View sessions</a></p>
+{% endblock %}

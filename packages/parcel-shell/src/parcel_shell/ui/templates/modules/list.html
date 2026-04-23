@@ -1,0 +1,28 @@
+{% extends "_base.html" %}
+{% block title %}Modules — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">Modules</h2>
+<table class="table">
+  <thead><tr><th>Name</th><th>Version</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for m in modules %}
+    <tr>
+      <td><a href="/modules/{{ m.name }}">{{ m.name }}</a></td>
+      <td>{{ m.version }}</td>
+      <td>
+        {% if m.is_active is none %}
+          {% if m.is_discoverable %}<span class="pill">available</span>{% endif %}
+        {% elif m.is_active %}
+          <span class="pill success">installed</span>
+        {% else %}
+          <span class="pill danger">inactive</span>{% if not m.is_discoverable %} <span class="pill">missing</span>{% endif %}
+        {% endif %}
+      </td>
+      <td style="text-align: right;"><a class="btn" href="/modules/{{ m.name }}">Details →</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted" style="text-align:center;">No modules discovered.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

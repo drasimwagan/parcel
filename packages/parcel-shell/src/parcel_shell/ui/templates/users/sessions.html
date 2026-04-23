@@ -1,0 +1,28 @@
+{% extends "_base.html" %}
+{% block title %}Sessions for {{ target_user.email }} — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">Sessions — {{ target_user.email }}</h2>
+  <div>
+    <a href="/users/{{ target_user.id }}" class="btn">← Back</a>
+    <form method="post" action="/users/{{ target_user.id }}/sessions/revoke" style="display:inline; margin-left: 6px;">
+      <button class="btn danger" type="submit" onclick="return confirm('Revoke all sessions for this user?')">Revoke all</button>
+    </form>
+  </div>
+</div>
+<table class="table">
+  <thead><tr><th>Created</th><th>Last seen</th><th>IP</th><th>User agent</th></tr></thead>
+  <tbody>
+    {% for s in sessions %}
+    <tr>
+      <td>{{ s.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ s.last_seen_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ s.ip_address or '—' }}</td>
+      <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.user_agent or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted" style="text-align:center;">No active sessions.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">Dashboard</h2>
+<div class="surface" style="padding: 20px; border-radius: 6px; margin-bottom: 16px;">
+  <p class="muted" style="font-size: 13px; margin: 0 0 4px;">Signed in as</p>
+  <p style="margin: 0;">{{ user.email }}</p>
+</div>
+<div class="surface" style="padding: 20px; border-radius: 6px;">
+  <p class="muted" style="font-size: 13px; margin: 0 0 8px;">Effective permissions ({{ permissions|length }})</p>
+  <div>
+    {% for p in permissions|sort %}<span class="pill" style="margin: 2px;">{{ p }}</span>{% endfor %}
+  </div>
+</div>
+{% endblock %}

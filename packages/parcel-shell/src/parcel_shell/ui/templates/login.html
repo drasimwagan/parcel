@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block title %}Sign in — Parcel{% endblock %}
+{% block unauth_content %}
+<div style="display:flex; align-items:center; justify-content:center; min-height: 100vh; padding: 24px;">
+  <form class="surface" method="post" action="/login" style="width: 360px; padding: 24px; border-radius: 6px;">
+    <h2 style="margin: 0 0 4px; font-family: ui-monospace, monospace; font-weight: 600;">◼ parcel</h2>
+    <p class="muted" style="margin: 0 0 20px; font-size: 13px;">Sign in to continue</p>
+    {% if error %}
+    <div class="alert error" style="margin: 0 0 14px;">{{ error }}</div>
+    {% endif %}
+    <input type="hidden" name="next" value="{{ next_url or '/' }}">
+    <label style="display:block; font-size: 13px; margin-bottom: 4px;">Email</label>
+    <input class="input" type="email" name="email" required autofocus value="{{ email or '' }}" style="margin-bottom: 12px;">
+    <label style="display:block; font-size: 13px; margin-bottom: 4px;">Password</label>
+    <input class="input" type="password" name="password" required style="margin-bottom: 16px;">
+    <button class="btn primary" type="submit" style="width: 100%; justify-content: center;">Sign in</button>
+  </form>
+</div>
+{% endblock %}

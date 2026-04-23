@@ -1,0 +1,20 @@
+{% macro user_row(u) %}
+<tr id="user-row-{{ u.id }}">
+  <td><a href="/users/{{ u.id }}">{{ u.email }}</a></td>
+  <td><span class="pill {{ 'success' if u.is_active else 'danger' }}">{{ 'active' if u.is_active else 'inactive' }}</span></td>
+  <td>
+    {% for r in u.roles %}<span class="pill info" style="margin-right:2px;">{{ r.name }}</span>{% endfor %}
+  </td>
+  <td style="text-align: right;">
+    <a class="btn" href="/users/{{ u.id }}">Edit</a>
+  </td>
+</tr>
+{% endmacro %}
+
+{% macro role_row(r) %}
+<tr id="role-row-{{ r.id }}">
+  <td><a href="/roles/{{ r.id }}">{{ r.name }}</a>{% if r.is_builtin %} <span class="pill info">built-in</span>{% endif %}</td>
+  <td>{{ r.description or '' }}</td>
+  <td>{{ r.permissions|length }} permissions</td>
+</tr>
+{% endmacro %}

@@ -1,0 +1,22 @@
+<div class="surface" style="padding: 20px; border-radius: 6px; margin-bottom: 20px;" id="roles-block">
+  <h3 style="margin: 0 0 12px;">Roles</h3>
+  <div id="user-roles-pills" style="margin-bottom: 12px;">
+    {% for r in target_user.roles %}
+    <span class="pill info" style="margin-right: 4px;">
+      {{ r.name }}
+      <button class="btn" style="font-size:11px; padding:0 4px; margin-left: 4px; border:none; background:transparent; color: var(--danger); cursor: pointer;" hx-post="/users/{{ target_user.id }}/roles/{{ r.id }}/remove" hx-target="#roles-block" hx-swap="outerHTML">×</button>
+    </span>
+    {% endfor %}
+  </div>
+  <form hx-post="/users/{{ target_user.id }}/roles" hx-target="#roles-block" hx-swap="outerHTML" style="display:flex; gap: 8px;">
+    <select class="input" name="role_id" style="flex: 1;">
+      <option value="">Add role…</option>
+      {% for r in all_roles %}
+        {% set assigned = namespace(found=false) %}
+        {% for ur in target_user.roles %}{% if ur.id == r.id %}{% set assigned.found = true %}{% endif %}{% endfor %}
+        {% if not assigned.found %}<option value="{{ r.id }}">{{ r.name }}</option>{% endif %}
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">Add</button>
+  </form>
+</div>

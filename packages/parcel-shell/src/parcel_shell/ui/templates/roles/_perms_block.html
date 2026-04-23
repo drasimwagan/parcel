@@ -1,0 +1,26 @@
+<div class="surface" style="padding: 20px; border-radius: 6px;" id="role-perms-block">
+  <h3 style="margin: 0 0 12px;">Permissions ({{ role.permissions|length }})</h3>
+  <div style="margin-bottom: 12px;">
+    {% for p in role.permissions|sort(attribute='name') %}
+    <span class="pill info" style="margin: 2px;">
+      {{ p.name }}
+      {% if not role.is_builtin %}
+      <button class="btn" style="font-size:11px; padding:0 4px; margin-left: 4px; border:none; background:transparent; color: var(--danger); cursor: pointer;" hx-post="/roles/{{ role.id }}/permissions/{{ p.name }}/remove" hx-target="#role-perms-block" hx-swap="outerHTML">×</button>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% if not role.is_builtin %}
+  <form hx-post="/roles/{{ role.id }}/permissions" hx-target="#role-perms-block" hx-swap="outerHTML" style="display:flex; gap: 8px;">
+    <select class="input" name="permission_name" style="flex: 1;">
+      <option value="">Add permission…</option>
+      {% for p in all_permissions %}
+        {% set assigned = namespace(found=false) %}
+        {% for rp in role.permissions %}{% if rp.name == p.name %}{% set assigned.found = true %}{% endif %}{% endfor %}
+        {% if not assigned.found %}<option value="{{ p.name }}">{{ p.name }} — {{ p.description }}</option>{% endif %}
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">Add</button>
+  </form>
+  {% endif %}
+</div>
