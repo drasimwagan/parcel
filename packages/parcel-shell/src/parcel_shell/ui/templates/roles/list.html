@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% from "_macros.html" import role_row %}
+{% block title %}Roles — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 16px;">
+  <h2 style="margin: 0;">Roles</h2>
+  <a class="btn primary" href="/roles/new">+ New role</a>
+</div>
+<table class="table">
+  <thead><tr><th>Name</th><th>Description</th><th>Permissions</th></tr></thead>
+  <tbody>
+    {% for r in roles %}{{ role_row(r) }}{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

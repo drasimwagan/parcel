@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% block title %}New user — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">New user</h2>
+<div class="surface" style="padding: 20px; max-width: 520px; border-radius: 6px;">
+  {% if error %}<div class="alert error" style="margin: 0 0 12px;">{{ error }}</div>{% endif %}
+  <form method="post" action="/users">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Email</label>
+    <input class="input" type="email" name="email" required value="{{ email or '' }}" style="margin-bottom: 12px;">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Password (min 12 chars)</label>
+    <input class="input" type="password" name="password" minlength="12" required style="margin-bottom: 16px;">
+    <button class="btn primary" type="submit">Create user</button>
+    <a class="btn" href="/users" style="margin-left: 8px;">Cancel</a>
+  </form>
+</div>
+{% endblock %}

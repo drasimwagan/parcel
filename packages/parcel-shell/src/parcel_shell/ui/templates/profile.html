@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}Profile — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">Profile</h2>
+
+<div class="surface" style="padding: 20px; max-width: 520px; border-radius: 6px; margin-bottom: 20px;">
+  <p class="muted" style="font-size: 13px; margin: 0 0 4px;">Email</p>
+  <p style="margin: 0;">{{ user.email }}</p>
+</div>
+
+<div class="surface" style="padding: 20px; max-width: 520px; border-radius: 6px;">
+  <h3 style="margin: 0 0 12px;">Change password</h3>
+  {% if pw_error %}<div class="alert error" style="margin: 0 0 12px;">{{ pw_error }}</div>{% endif %}
+  <form method="post" action="/profile/password">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Current password</label>
+    <input class="input" type="password" name="current_password" required style="margin-bottom: 12px;">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">New password (min 12 chars)</label>
+    <input class="input" type="password" name="new_password" minlength="12" required style="margin-bottom: 16px;">
+    <button class="btn primary" type="submit">Change password</button>
+  </form>
+</div>
+{% endblock %}

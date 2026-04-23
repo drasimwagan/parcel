@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% block title %}New role — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">New role</h2>
+<div class="surface" style="padding: 20px; max-width: 520px; border-radius: 6px;">
+  {% if error %}<div class="alert error" style="margin: 0 0 12px;">{{ error }}</div>{% endif %}
+  <form method="post" action="/roles">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Name</label>
+    <input class="input" type="text" name="name" required value="{{ name or '' }}" style="margin-bottom: 12px;">
+    <label style="display:block; font-size: 13px; margin: 0 0 4px;">Description</label>
+    <input class="input" type="text" name="description" value="{{ description or '' }}" style="margin-bottom: 16px;">
+    <button class="btn primary" type="submit">Create role</button>
+    <a class="btn" href="/roles" style="margin-left: 8px;">Cancel</a>
+  </form>
+</div>
+{% endblock %}

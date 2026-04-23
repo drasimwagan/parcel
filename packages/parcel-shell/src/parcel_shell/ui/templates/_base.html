@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{% block title %}Parcel{% endblock %}</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("parcel_theme") || "plain";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "plain");
+    }
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://unpkg.com/alpinejs@3.13.7/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="/static/app.css" />
+<script defer src="/static/app.js"></script>
+</head>
+<body>
+  {% if user %}
+  <header class="topbar">
+    <a href="/" class="brand">◼ parcel</a>
+    <span class="env-badge">{{ settings.env }}</span>
+    <div class="user-menu" x-data="{ open: false, theme: (window.parcelTheme ? window.parcelTheme() : 'plain') }" x-on:click.outside="open = false">
+      <span x-on:click="open = !open">{{ user.email }} ▾</span>
+      <div class="menu-body" x-show="open" x-cloak>
+        <div class="label">Theme</div>
+        <button type="button" x-on:click="setTheme('plain'); theme='plain'" :style="theme === 'plain' ? 'font-weight:600' : ''">Plain</button>
+        <button type="button" x-on:click="setTheme('blue'); theme='blue'" :style="theme === 'blue' ? 'font-weight:600' : ''">Blue</button>
+        <button type="button" x-on:click="setTheme('dark'); theme='dark'" :style="theme === 'dark' ? 'font-weight:600' : ''">Dark</button>
+        <div class="rule" style="margin: 6px 0;"></div>
+        <a href="/profile">Profile</a>
+        <form method="post" action="/logout" style="margin: 0;">
+          <button type="submit">Log out</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  {% include "_alerts.html" %}
+  <div id="toast-region" style="position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px;"></div>
+
+  {% if user %}
+  <div style="display:grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 48px);">
+    <aside class="sidebar">
+      {% for section in sidebar %}
+      <div class="section-label">{{ section.label }}</div>
+      {% for item in section.items %}
+      <a href="{{ item.href }}" class="{% if active_path == item.href or (item.href != '/' and active_path.startswith(item.href)) %}active{% endif %}">{{ item.label }}</a>
+      {% endfor %}
+      {% endfor %}
+    </aside>
+    <main style="padding: 24px 32px;">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% else %}
+    {% block unauth_content %}{% endblock %}
+  {% endif %}
+</body>
+</html>
