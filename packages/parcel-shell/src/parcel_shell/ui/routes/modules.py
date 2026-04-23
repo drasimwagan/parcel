@@ -107,6 +107,7 @@ async def modules_install(
             approve_capabilities=approved,
             discovered=index,
             database_url=database_url,
+            app=request.app,
         )
     except module_service.ModuleNotDiscovered:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "module_not_discovered") from None

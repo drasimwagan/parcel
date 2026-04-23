@@ -80,6 +80,7 @@ async def install(
             approve_capabilities=payload.approve_capabilities,
             discovered=index,
             database_url=database_url,
+            app=request.app,
         )
     except service.ModuleNotDiscovered as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "module_not_discovered") from e

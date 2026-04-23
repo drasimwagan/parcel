@@ -48,6 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await module_service.sync_on_boot(s)
             await s.commit()
 
+        from parcel_shell.modules.integration import sync_active_modules
+
+        await sync_active_modules(app)
+
         log.info("shell.startup", env=settings.env)
         try:
             yield

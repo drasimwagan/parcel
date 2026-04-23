@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 from alembic import command
@@ -15,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from parcel_shell.modules.discovery import DiscoveredModule
 from parcel_shell.modules.models import InstalledModule
 from parcel_shell.rbac.models import Permission
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 _log = structlog.get_logger("parcel_shell.modules.service")
 
@@ -51,6 +55,7 @@ async def install_module(
     approve_capabilities: list[str],
     discovered: dict[str, DiscoveredModule],
     database_url: str,
+    app: "FastAPI | None" = None,
 ) -> InstalledModule:
     d = discovered.get(name)
     if d is None:
@@ -115,6 +120,13 @@ async def install_module(
     )
     db.add(row)
     await db.flush()
+
+    # Phase 5: mount the module onto the running app, if provided.
+    if app is not None:
+        from parcel_shell.modules.integration import mount_module
+
+        mount_module(app, d)
+
     return row
 
 
