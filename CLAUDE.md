@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 4 — Admin UI shell done.** Server-rendered Jinja templates + Tailwind (Play CDN) + HTMX + Alpine.js. HTML routes at `/login`, `/`, `/profile`, `/users/*`, `/roles/*`, `/modules/*`. Unauthenticated HTML requests redirect to `/login?next=<path>` via `HTMLRedirect` exception handled globally. Three user-selectable themes (`plain` default, `blue`, `dark`) swapped via `[data-theme]` on `<html>`, persisted to localStorage. Flash messages ride in a signed `parcel_flash` cookie; middleware pops + clears. JSON APIs at `/auth/*`, `/admin/*`, `/health/*` unchanged. 149-test suite.
+**Phase 5 — Contacts demo module done.** `parcel-sdk` gained `Module.router` / `Module.templates_dir` / `Module.sidebar_items` plus a `SidebarItem` dataclass. Shell mounts active modules on install and at lifespan startup: router goes under `/mod/<name>/*`, templates dir is prepended to the Jinja loader, sidebar items render as a dedicated section. Module install also attaches the module's permissions to the built-in `admin` role. The Contacts module (`modules/contacts`) ships Contact + Company entities, `contacts.read` + `contacts.write`, roomy two-line list pages with live HTMX search, form-first detail pages. 170-test suite.
 
-Next: **Phase 5 — Contacts demo module.** Start a new session; prompt: "Begin Phase 5: Contacts module per `CLAUDE.md` roadmap." Do not begin Phase 5 inside the Phase 4 commit cluster.
+Next: **Phase 6 — SDK polish + `parcel` CLI.** Start a new session; prompt: "Begin Phase 6 per `CLAUDE.md` roadmap." Do not begin Phase 6 inside the Phase 5 commit cluster.
 
 ## Locked-in decisions
 
@@ -66,6 +66,11 @@ Next: **Phase 5 — Contacts demo module.** Start a new session; prompt: "Begin 
 | Flash messages | Signed `parcel_flash` HTTP-only cookie (itsdangerous), read + cleared by FlashMiddleware |
 | URL boundary | HTML at `/`, `/login`, `/profile`, `/users`, `/roles`, `/modules`; JSON stays at `/auth/*`, `/admin/*`, `/health/*` |
 | CSRF | Phase 4 relies on Phase 2's `SameSite=Lax` cookie; token middleware deferred |
+| Module UI seam | `Module.router`, `Module.templates_dir`, `Module.sidebar_items` (Phase 5 SDK additions) |
+| Module URL prefix | `/mod/<name>/*`. Template dir prepended to Jinja loader; sidebar items rendered as a per-module section. |
+| Module install + admin role | `install_module` assigns the module's permissions to the built-in `admin` role so admins inherit every capability across shell + modules. |
+| Module removal on uninstall | Routes stay mounted until next process restart (FastAPI doesn't support clean router removal). Soft uninstall flips `is_active=false`; next boot skips mounting. |
+| Module→shell coupling | Phase 5 modules import `parcel_shell.*` hooks directly. Phase 6 extracts a stable `parcel_sdk.shell_api` facade so modules no longer depend on parcel-shell internals. |
 
 ## Repository layout
 
@@ -114,8 +119,8 @@ contacts = "parcel_mod_contacts:module"
 | 2 | ✅ done | Auth + RBAC: users, sessions, Argon2, roles, permissions registry |
 | 3 | ✅ done | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
 | 4 | ✅ done | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
-| 5 | ⏭ next | Contacts demo module end-to-end |
-| 6 |  | SDK polish + `parcel` CLI |
+| 5 | ✅ done | Contacts demo module end-to-end |
+| 6 | ⏭ next | SDK polish + `parcel` CLI |
 | 7 |  | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 

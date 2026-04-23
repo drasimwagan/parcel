@@ -55,7 +55,7 @@ async def install_module(
     approve_capabilities: list[str],
     discovered: dict[str, DiscoveredModule],
     database_url: str,
-    app: "FastAPI | None" = None,
+    app: FastAPI | None = None,
 ) -> InstalledModule:
     d = discovered.get(name)
     if d is None:
@@ -90,9 +90,7 @@ async def install_module(
         # inherit every permission across shell + modules. Matches the pattern
         # the Phase 2 & 3 migrations use for shell permissions.
         admin_row = (
-            await db.execute(
-                sa_text("SELECT id FROM shell.roles WHERE name = 'admin'")
-            )
+            await db.execute(sa_text("SELECT id FROM shell.roles WHERE name = 'admin'"))
         ).first()
         if admin_row is not None:
             admin_id = admin_row[0]

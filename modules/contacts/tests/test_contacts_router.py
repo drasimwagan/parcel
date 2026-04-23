@@ -4,6 +4,7 @@ Each test installs the contacts module via the shell's installer, runs
 against the real app via ``committing_admin`` (extended to mount the module),
 and hard-uninstalls at the end.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -163,9 +164,7 @@ async def test_delete_contact_redirects_to_list(authed_contacts: AsyncClient) ->
         follow_redirects=False,
     )
     contact_id = r.headers["location"].rsplit("/", 1)[1]
-    r2 = await authed_contacts.post(
-        f"/mod/contacts/{contact_id}/delete", follow_redirects=False
-    )
+    r2 = await authed_contacts.post(f"/mod/contacts/{contact_id}/delete", follow_redirects=False)
     assert r2.status_code == 303
     assert r2.headers["location"] == "/mod/contacts/"
 

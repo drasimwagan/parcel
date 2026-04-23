@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phase 4 complete — browser-based admin UI with login, dashboard, users/roles/modules CRUD, and three user-selectable themes. Ships as server-rendered Jinja + HTMX + Alpine.js over Tailwind CDN; no npm build step.
+**Status:** Pre-alpha. Phase 5 complete — modules can now contribute a UI (router + templates + sidebar). The bundled Contacts/CRM-lite demo module ships with Contact + Company entities, roomy two-line list pages with live HTMX search, form-first detail pages, and two permissions. Install it from `/modules`.
 
 ## Vision
 
@@ -83,9 +83,13 @@ curl -b cookies.txt -H 'content-type: application/json' \
   http://localhost:8000/admin/modules/install
 ```
 
-### What Phase 4+ will add
+### Demo module: contacts
 
-Admin UI on Jinja/Tailwind/HTMX (Phase 4), a demo Contacts module (Phase 5), a `parcel` CLI (Phase 6), and the AI module generator (Phase 7).
+`modules/contacts` is the bundled Contacts/CRM-lite demo. Install it from `/modules` (no capabilities to approve). After a container restart the sidebar grows a **Contacts** section; each entity has list, detail, and create pages with HTMX live search.
+
+### What Phase 6+ will add
+
+A `parcel` CLI (Phase 6) — one entry point for `new-module`, `install`, `migrate`, `dev`, `serve`. The AI module generator lands in Phase 7.
 
 ## Roadmap
 

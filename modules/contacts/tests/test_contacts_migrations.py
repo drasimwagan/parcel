@@ -8,12 +8,7 @@ from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-ALEMBIC_INI = (
-    Path(__file__).resolve().parents[1]
-    / "src"
-    / "parcel_mod_contacts"
-    / "alembic.ini"
-)
+ALEMBIC_INI = Path(__file__).resolve().parents[1] / "src" / "parcel_mod_contacts" / "alembic.ini"
 
 
 def _cfg(url: str) -> Config:
@@ -22,9 +17,7 @@ def _cfg(url: str) -> Config:
     return c
 
 
-async def test_upgrade_creates_mod_contacts_schema(
-    database_url: str, engine: AsyncEngine
-) -> None:
+async def test_upgrade_creates_mod_contacts_schema(database_url: str, engine: AsyncEngine) -> None:
     async with engine.connect() as conn:
         await conn.execute(text('DROP SCHEMA IF EXISTS "mod_contacts" CASCADE'))
         await conn.commit()
@@ -48,9 +41,7 @@ async def test_upgrade_creates_mod_contacts_schema(
         await conn.commit()
 
 
-async def test_downgrade_removes_tables(
-    database_url: str, engine: AsyncEngine
-) -> None:
+async def test_downgrade_removes_tables(database_url: str, engine: AsyncEngine) -> None:
     cfg = _cfg(database_url)
     async with engine.connect() as conn:
         await conn.execute(text('DROP SCHEMA IF EXISTS "mod_contacts" CASCADE'))

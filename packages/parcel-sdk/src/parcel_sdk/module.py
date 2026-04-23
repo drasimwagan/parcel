@@ -24,8 +24,8 @@ class Module:
     permissions: tuple[Permission, ...] = ()
     capabilities: tuple[str, ...] = ()
     alembic_ini: Path | None = None
-    metadata: "MetaData | None" = None
+    metadata: MetaData | None = None
     # Phase 5 additions — optional UI contribution:
-    router: "Any | None" = None
+    router: Any | None = None
     templates_dir: Path | None = None
     sidebar_items: tuple[SidebarItem, ...] = ()

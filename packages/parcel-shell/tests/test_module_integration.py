@@ -41,7 +41,7 @@ def test_mount_module_adds_router_with_prefix(tmp_path: Path) -> None:
     mount_module(app, discovered)
 
     # Router mounted at /mod/demo
-    paths = [r.path for r in app.routes]
+    paths = [getattr(r, "path", "") for r in app.routes]
     assert any(p.startswith("/mod/demo") for p in paths)
 
     # Template dir registered

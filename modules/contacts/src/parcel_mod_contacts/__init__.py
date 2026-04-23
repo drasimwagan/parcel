@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from parcel_sdk import Module, Permission
-
 from parcel_mod_contacts.models import metadata
 from parcel_mod_contacts.router import router
 from parcel_mod_contacts.sidebar import SIDEBAR_ITEMS
+from parcel_sdk import Module, Permission
 
 module = Module(
     name="contacts",

@@ -43,9 +43,7 @@ def visible_sections(perms: set[str]) -> list[SidebarSection]:
     """Shell-only sections visible to the user."""
     out: list[SidebarSection] = []
     for section in SIDEBAR:
-        items = tuple(
-            i for i in section.items if i.permission is None or i.permission in perms
-        )
+        items = tuple(i for i in section.items if i.permission is None or i.permission in perms)
         if items:
             out.append(SidebarSection(label=section.label, items=items))
     return out

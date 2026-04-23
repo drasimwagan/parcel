@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from parcel_mod_contacts.models import Company, Contact
 
-
 # ── Contacts ────────────────────────────────────────────────────────────
 
 
@@ -25,14 +24,12 @@ async def list_contacts(
                 Contact.last_name.ilike(pat),
             )
         )
-    total = (
-        await db.execute(select(func.count()).select_from(stmt.subquery()))
-    ).scalar_one()
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     rows = (
-        await db.execute(
-            stmt.order_by(Contact.created_at.desc()).offset(offset).limit(limit)
-        )
-    ).scalars().all()
+        (await db.execute(stmt.order_by(Contact.created_at.desc()).offset(offset).limit(limit)))
+        .scalars()
+        .all()
+    )
     return list(rows), int(total)
 
 
@@ -103,12 +100,10 @@ async def list_companies(
     stmt = select(Company)
     if q:
         stmt = stmt.where(Company.name.ilike(f"%{q}%"))
-    total = (
-        await db.execute(select(func.count()).select_from(stmt.subquery()))
-    ).scalar_one()
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     rows = (
-        await db.execute(stmt.order_by(Company.name).offset(offset).limit(limit))
-    ).scalars().all()
+        (await db.execute(stmt.order_by(Company.name).offset(offset).limit(limit))).scalars().all()
+    )
     return list(rows), int(total)
 
 
@@ -116,9 +111,7 @@ async def get_company(db: AsyncSession, company_id: uuid.UUID) -> Company | None
     return await db.get(Company, company_id)
 
 
-async def create_company(
-    db: AsyncSession, *, name: str, website: str | None = None
-) -> Company:
+async def create_company(db: AsyncSession, *, name: str, website: str | None = None) -> Company:
     c = Company(name=name.strip(), website=(website or None))
     db.add(c)
     await db.flush()

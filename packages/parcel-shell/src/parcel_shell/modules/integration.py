@@ -48,10 +48,10 @@ async def sync_active_modules(app: FastAPI) -> None:
     discovered = {d.module.name: d for d in discover_modules()}
     async with sessionmaker() as s:
         rows = (
-            await s.execute(
-                select(InstalledModule).where(InstalledModule.is_active.is_(True))
-            )
-        ).scalars().all()
+            (await s.execute(select(InstalledModule).where(InstalledModule.is_active.is_(True))))
+            .scalars()
+            .all()
+        )
     for row in rows:
         d = discovered.get(row.name)
         if d is None:

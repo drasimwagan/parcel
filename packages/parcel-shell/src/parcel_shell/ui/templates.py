@@ -16,9 +16,7 @@ def get_templates() -> Jinja2Templates:
     """
     tpl = Jinja2Templates(directory=str(_SHELL_TEMPLATES_DIR))
     # Swap in a ChoiceLoader so we can prepend module template dirs at runtime.
-    tpl.env.loader = jinja2.ChoiceLoader(
-        [jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR))]
-    )
+    tpl.env.loader = jinja2.ChoiceLoader([jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR))])
     return tpl
 
 

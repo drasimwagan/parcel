@@ -16,13 +16,7 @@ from sqlalchemy.ext.asyncio import (
 
 from parcel_mod_contacts import service
 
-
-ALEMBIC_INI = (
-    Path(__file__).resolve().parents[1]
-    / "src"
-    / "parcel_mod_contacts"
-    / "alembic.ini"
-)
+ALEMBIC_INI = Path(__file__).resolve().parents[1] / "src" / "parcel_mod_contacts" / "alembic.ini"
 
 
 @pytest.fixture
@@ -49,9 +43,7 @@ async def contacts_session(migrations_applied: str) -> AsyncIterator[AsyncSessio
 
 
 async def test_create_and_get_contact(contacts_session: AsyncSession) -> None:
-    c = await service.create_contact(
-        contacts_session, email="Ada@Example.com", first_name="Ada"
-    )
+    c = await service.create_contact(contacts_session, email="Ada@Example.com", first_name="Ada")
     await contacts_session.commit()
     assert c.email == "ada@example.com"
     got = await service.get_contact(contacts_session, c.id)
@@ -82,9 +74,7 @@ async def test_company_delete_sets_contact_company_null(
     contacts_session: AsyncSession,
 ) -> None:
     co = await service.create_company(contacts_session, name="Doomed Inc.")
-    c = await service.create_contact(
-        contacts_session, email="x@x.com", company_id=co.id
-    )
+    c = await service.create_contact(contacts_session, email="x@x.com", company_id=co.id)
     await contacts_session.commit()
     contact_id = c.id
 
@@ -101,9 +91,7 @@ async def test_update_contact_clears_company_on_request(
     contacts_session: AsyncSession,
 ) -> None:
     co = await service.create_company(contacts_session, name="Temporary")
-    c = await service.create_contact(
-        contacts_session, email="y@x.com", company_id=co.id
-    )
+    c = await service.create_contact(contacts_session, email="y@x.com", company_id=co.id)
     await contacts_session.commit()
 
     await service.update_contact(contacts_session, contact=c, clear_company=True)
