@@ -86,6 +86,25 @@ async def install_module(
         )
         await db.execute(stmt)
 
+        # Attach the new permissions to the built-in `admin` role so admins
+        # inherit every permission across shell + modules. Matches the pattern
+        # the Phase 2 & 3 migrations use for shell permissions.
+        admin_row = (
+            await db.execute(
+                sa_text("SELECT id FROM shell.roles WHERE name = 'admin'")
+            )
+        ).first()
+        if admin_row is not None:
+            admin_id = admin_row[0]
+            for perm in d.module.permissions:
+                await db.execute(
+                    sa_text(
+                        "INSERT INTO shell.role_permissions (role_id, permission_name) "
+                        "VALUES (:rid, :name) ON CONFLICT DO NOTHING"
+                    ),
+                    {"rid": admin_id, "name": perm.name},
+                )
+
     # The module's migrations open their own connection; they must see the
     # CREATE SCHEMA we just issued. Flush + commit before running them.
     await db.flush()
