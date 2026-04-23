@@ -176,7 +176,7 @@ async def admin_user(
     from sqlalchemy import select
 
     admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
-    return await user_factory(email="admin@test.local", roles=(admin_role,))
+    return await user_factory(email="admin@test.example.com", roles=(admin_role,))
 
 
 @pytest.fixture

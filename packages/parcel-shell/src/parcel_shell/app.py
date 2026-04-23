@@ -14,6 +14,7 @@ from parcel_shell.health import router as health_router
 from parcel_shell.logging import configure_logging
 from parcel_shell.middleware import RequestIdMiddleware
 from parcel_shell.rbac.registry import registry as permission_registry
+from parcel_shell.rbac.router_admin import router as admin_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -49,5 +50,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(admin_router)
 
     return app
