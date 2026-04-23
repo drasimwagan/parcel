@@ -192,6 +192,64 @@ def empty_entry_points(monkeypatch):
     monkeypatch.setattr(disco, "entry_points", fake_entry_points)
 
 
+# For module router tests that need real commits (the service commits mid-request
+# so alembic sees the schema). Uses the production get_session (which commits on
+# success) instead of the savepoint-wrapped db_session.
+
+@pytest.fixture
+async def committing_app(settings: Settings) -> AsyncIterator[Any]:
+    from parcel_shell.app import create_app
+
+    fastapi_app = create_app(settings=settings)
+    async with LifespanManager(fastapi_app):
+        yield fastapi_app
+
+
+@pytest.fixture
+async def committing_client(committing_app: Any) -> AsyncIterator[AsyncClient]:
+    async with AsyncClient(
+        transport=ASGITransport(app=committing_app, raise_app_exceptions=False),
+        base_url="http://t",
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+async def committing_admin(committing_client: AsyncClient, settings: Settings):
+    """Create a fresh admin user, log in, clean up after."""
+    import uuid
+    from sqlalchemy import select
+
+    from parcel_shell.bootstrap import create_admin_user
+    from parcel_shell.rbac.models import User
+
+    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    email = f"admin-{uuid.uuid4().hex[:8]}@test.example.com"
+    password = "password-1234-long"
+
+    try:
+        async with factory() as s:
+            await create_admin_user(s, email=email, password=password, force=False)
+            await s.commit()
+
+        r = await committing_client.post(
+            "/auth/login", json={"email": email, "password": password}
+        )
+        assert r.status_code == 200, r.text
+        yield committing_client
+    finally:
+        async with factory() as s:
+            user = (
+                await s.execute(select(User).where(User.email == email))
+            ).scalar_one_or_none()
+            if user is not None:
+                await s.delete(user)
+                await s.commit()
+        await engine.dispose()
+
+
 # ── Factories ────────────────────────────────────────────────────────────
 
 
