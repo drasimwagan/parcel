@@ -36,6 +36,18 @@ def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: yields an AsyncSession per request.
+
+    Commits on successful completion, rolls back on any exception. This keeps
+    write-bearing endpoints (login, admin mutations, etc.) durable without
+    requiring each handler to call ``session.commit()`` itself.
+    """
     session_factory: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     async with session_factory() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        else:
+            await session.commit()

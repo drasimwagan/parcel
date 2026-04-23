@@ -4,6 +4,7 @@
 set -euo pipefail
 
 cmd="${1:-serve}"
+shift || true
 
 case "$cmd" in
   serve)
@@ -17,12 +18,15 @@ case "$cmd" in
       -c packages/parcel-shell/src/parcel_shell/alembic.ini \
       upgrade head
     ;;
+  bootstrap)
+    exec uv run python -m parcel_shell.bootstrap "$@"
+    ;;
   shell)
     exec /bin/bash
     ;;
   *)
     echo "[parcel] Unknown command: $cmd"
-    echo "Usage: $0 {serve|migrate|shell}"
+    echo "Usage: $0 {serve|migrate|bootstrap|shell}"
     exit 1
     ;;
 esac
