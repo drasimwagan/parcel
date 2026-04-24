@@ -177,7 +177,7 @@ Every module on Parcel will end up needing some mix of **dashboards** (glance-at
 - **Chart library.** Server-render SVG (e.g. `pygal`, `matplotlib`) vs HTMX-fetches-JSON + a client-side lib (Chart.js or ECharts via CDN, matches existing Tailwind+HTMX+Alpine stack). Leaning CDN-JS — fits the Phase 4 pattern, no new Python deps, charts render with the page's theme.
 - **Widget data contract.** Does a widget compute its data via a module-supplied async function (`Widget(data=my_fn)`) or a SQL query string? Function is more flexible; query string is easier for the AI generator to emit. Probably both, with the function path as the primary contract.
 - **Permission model.** Per-widget permission (gate at the dashboard page) or per-dashboard (gate at the sidebar link)? Likely per-dashboard, because dashboards tend to aggregate data the user is already entitled to see elsewhere.
-- **Caching.** Whether widgets cache results in Redis for a short TTL. Almost certainly yes; cache key includes user perms so permission changes propagate.
+- **Caching.** Deferred. Phase 8 ships with no widget caching — revisit with real data when a specific widget proves slow, likely riding Phase 10's ARQ/Redis infrastructure. Cache key, when added, must include user perms so permission changes propagate.
 
 ### Phase 9 — Reports + PDF generation
 

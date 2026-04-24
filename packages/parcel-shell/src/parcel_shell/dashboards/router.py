@@ -8,6 +8,7 @@ from starlette.responses import HTMLResponse
 from parcel_sdk.dashboards import (
     BarWidget,
     Ctx,
+    Dashboard,
     HeadlineWidget,
     KpiWidget,
     LineWidget,
@@ -39,8 +40,8 @@ _PARTIALS = {
 
 def _group_by_module(
     registered: list[RegisteredDashboard], perms: set[str]
-) -> list[tuple[str, list]]:
-    groups: dict[str, list] = {}
+) -> list[tuple[str, list[Dashboard]]]:
+    groups: dict[str, list[Dashboard]] = {}
     for r in registered:
         if r.dashboard.permission in perms:
             groups.setdefault(r.module_name, []).append(r.dashboard)
