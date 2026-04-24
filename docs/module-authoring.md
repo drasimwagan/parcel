@@ -1,6 +1,6 @@
 # Module Authoring Guide
 
-**Status:** Current through Phase 6. The SDK surface is stable at `parcel-sdk` 0.3.x.
+**Status:** Current through Phase 8. The SDK surface is stable at `parcel-sdk` 0.4.x.
 
 ## What a Parcel module is
 
@@ -229,3 +229,128 @@ module = Module(
 The gate only scans **runtime** code. Tests are allowed to import `parcel_shell.*` or call `subprocess` freely — the SDK-only constraint is a runtime rule, not a test rule.
 
 Human-authored modules installed via `parcel install` or `POST /admin/modules/install` bypass the gate entirely (trusted input). The gate exists so that AI-generated modules — landing in Phase 7b — go through a consistent safety check before the admin sees a preview.
+
+## Dashboards (Phase 8)
+
+A module can ship one or more `Dashboard` objects — glance-at-a-KPI surfaces composed of widgets. The shell auto-mounts them at `/dashboards/<module>/<slug>`; you don't write any routes.
+
+### Declaring a dashboard
+
+```python
+# modules/widgets/src/parcel_mod_widgets/dashboards.py
+from parcel_sdk.dashboards import (
+    Ctx, Dashboard, Kpi, KpiWidget, LineWidget, TableWidget,
+    scalar_query, series_query, table_query,
+)
+
+
+async def _total(ctx: Ctx) -> Kpi:
+    n = await scalar_query(ctx.session, "SELECT COUNT(*) FROM mod_widgets.widget")
+    return Kpi(value=int(n or 0))
+
+
+async def _new_30d(ctx: Ctx):
+    return await series_query(
+        ctx.session,
+        """
+        SELECT to_char(d, 'YYYY-MM-DD') AS day, COALESCE(c.n, 0) AS n
+        FROM generate_series(
+          (CURRENT_DATE - INTERVAL '29 days')::date, CURRENT_DATE, INTERVAL '1 day'
+        ) AS d
+        LEFT JOIN (
+          SELECT date_trunc('day', created_at)::date AS day, COUNT(*) AS n
+          FROM mod_widgets.widget
+          WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
+          GROUP BY 1
+        ) c ON c.day = d::date
+        ORDER BY d
+        """,
+        label_col="day",
+        value_col="n",
+    )
+
+
+overview_dashboard = Dashboard(
+    name="widgets.overview",
+    slug="overview",
+    title="Widgets overview",
+    permission="widgets.read",
+    description="At-a-glance state of your widgets.",
+    widgets=(
+        KpiWidget(id="total", title="Total widgets", data=_total, col_span=1),
+        LineWidget(id="new_30d", title="Created in last 30 days", data=_new_30d, col_span=4),
+    ),
+)
+```
+
+Then plug it into the manifest:
+
+```python
+module = Module(
+    name="widgets",
+    version="0.1.0",
+    # ... permissions, metadata, router, etc ...
+    dashboards=(overview_dashboard,),
+)
+```
+
+That's it. The shell collects the dashboard at mount time, adds a "Dashboards" entry to the sidebar (only if the user has `widgets.read`), and serves the list/detail pages. Each widget fetches its data via its own HTMX request — a slow widget doesn't block the page, and a failing widget renders a small error card without killing siblings.
+
+### Widget types
+
+| Type | Data function returns | Renders as |
+| --- | --- | --- |
+| `KpiWidget` | `Kpi(value, delta=None, delta_label=None)` | Big number with optional signed delta |
+| `LineWidget` | `Series(labels, datasets)` | Chart.js line chart |
+| `BarWidget` | `Series(labels, datasets)` | Chart.js bar chart |
+| `TableWidget` | `Table(columns, rows)` | Plain HTML table |
+| `HeadlineWidget` | — (has `text` / `href` directly) | Static heading, no data fetch |
+
+`col_span` (default 2) controls how wide the widget is on a 4-column grid.
+
+### SDK query helpers
+
+The three `parcel_sdk.dashboards.*` query helpers wrap `sqlalchemy.text()` with bound parameters. They are **params-only** — always bind via kwargs, never interpolate into the SQL string:
+
+```python
+# Good — value bound, safe
+n = await scalar_query(ctx.session, "SELECT COUNT(*) FROM x WHERE v > :min", min=5)
+
+# Bad — interpolation; triggers the Phase 7a `raw_sql` gate and is a SQL-injection footgun
+n = await scalar_query(ctx.session, f"SELECT COUNT(*) FROM x WHERE v > {user_input}")
+```
+
+- `scalar_query(session, sql, **params) -> Any` — first column of first row, `None` if empty.
+- `series_query(session, sql, label_col, value_col, **params) -> Series` — coerces values to `float` for Chart.js.
+- `table_query(session, sql, **params) -> Table` — reads columns from the cursor (preserves headers on empty results).
+
+These live inside the SDK (trusted code), so using them does **not** require declaring the `raw_sql` capability in your manifest. If you need to build SQL strings yourself (outside these helpers), you do — see the Capabilities section above.
+
+### Data returned from widgets
+
+- Table cells are rendered via Jinja's default `{{ cell }}` (`str()` with HTML escaping). Format timestamps, currencies, etc. in SQL or in your data function — don't expect the template to do it.
+- Chart values should be plain numbers. Postgres `numeric` columns come back as `Decimal` — `series_query` coerces for you; if you write a custom data function for `LineWidget`/`BarWidget`, cast to `float`.
+- Widget `data` callables are async and receive a single `Ctx(session, user_id)`. The session is the same short-lived request session; don't hold it across awaits outside its scope.
+
+### Permissions
+
+`Dashboard.permission` is one of your module's own permissions (e.g., `widgets.read`) — not a `dashboards.*` name. Users without it don't see the dashboard in the sidebar list and get a 404 if they visit the URL directly.
+
+### Testing dashboards
+
+Widget data functions are plain async functions; test them directly against a testcontainers-backed session:
+
+```python
+@pytest.fixture()
+def ctx(widgets_session) -> Ctx:
+    return Ctx(session=widgets_session, user_id=uuid4())
+
+
+async def test_total_kpi(ctx, widgets_session):
+    # seed rows...
+    w = next(w for w in overview_dashboard.widgets if w.id == "total")
+    kpi = await w.data(ctx)
+    assert kpi.value == 3
+```
+
+The `modules/contacts/tests/test_contacts_dashboard.py` file in the repo is a complete reference.
