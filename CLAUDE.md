@@ -14,7 +14,7 @@
 
 **Phase 7c — AI chat UI done.** Phase 7 ships modulo the preview-enrichment work (moved to Phase 8). `parcel_shell.ai.chat` package adds persistent chat sessions: two tables (`shell.ai_sessions` + `shell.ai_turns`, migration 0006), service layer with ownership enforcement, a background worker that runs each turn via `asyncio.create_task` with a `BaseException` safety net, and a boot-time `sweep_orphans` that marks any `generating` turns as `failed(process_restart)` after a shell restart. HTML-only admin surface at `/ai` (list) / `/ai/sessions/<id>` (detail with prompt box + HTMX-polled turn list, 1s while any turn is generating, stops when all terminal). Each admin turn is an independent generation — no accumulated Claude context across turns. Reuses `ai.generate`; no new permissions. `/admin/ai/generate` JSON one-shot from 7b stays untouched. Cross-admin access returns 404. Shell shutdown cancels outstanding AI tasks. 259-test suite.
 
-Next: **Phase 8 — Sandbox preview enrichment** (sample-record seeding, Playwright screenshots, ARQ worker). Start a new session; prompt: "Begin Phase 8 per `CLAUDE.md` roadmap." Do not begin Phase 8 inside the Phase 7c commit cluster.
+Next: **Phase 8 — Dashboards** (module-authored KPI cards + charts + tables). Start a new session; prompt: "Begin Phase 8 per `CLAUDE.md` roadmap." Do not begin Phase 8 inside the Phase 7c commit cluster. The full upcoming roadmap (8 Dashboards → 9 Reports/PDF → 10 Workflows → 11 Sandbox preview enrichment) is described below under "Upcoming phases".
 
 ## Locked-in decisions
 
@@ -151,10 +151,62 @@ contacts = "parcel_mod_contacts:module"
 | 7a | ✅ done | Static-analysis gate + sandbox install (no AI yet) |
 | 7b | ✅ done | Claude API generator — API + CLI provider, one-turn auto-repair |
 | 7c | ✅ done | Chat UI for the generator — persistent sessions, HTMX polling |
-| 8 | ⏭ next | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, ARQ worker |
+| 8 | ⏭ next | Dashboards — module-authored KPI cards, charts, live-query tables |
+| 9 |  | Reports + PDF generation — templated, parameterised, printable/exportable |
+| 10 |  | Workflows — state machines, triggers, actions (introduces ARQ as first-class infra) |
+| 11 |  | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, builds on ARQ |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.
+
+## Upcoming phases — scope and open questions
+
+Every module on Parcel will end up needing some mix of **dashboards** (glance-at-a-KPI, live-query tables), **reports** (printable/exportable point-in-time documents), and **workflows** (state transitions with triggered actions). Today the Contacts module has none of these, which is why they're the next three phases. Each one adds a shell-level primitive the SDK exposes so every future module gets it for free.
+
+### Phase 8 — Dashboards
+
+**Scope.** Shell grows a `/dashboards` surface. Modules declare `Dashboard` objects in their manifest (same pattern as `sidebar_items`). Each dashboard is a list of `Widget` specs: KPI cards (single scalar with trend), line/bar charts, tables, headlines. Widgets render server-side (HTMX partial) and re-fetch their own data independently — a slow query doesn't block the rest of the page. Contacts gets a "Contacts overview" dashboard as the reference: total contacts KPI, new-this-week line chart, recent-activity table.
+
+**Key decisions for the brainstorm:**
+- **Chart library.** Server-render SVG (e.g. `pygal`, `matplotlib`) vs HTMX-fetches-JSON + a client-side lib (Chart.js or ECharts via CDN, matches existing Tailwind+HTMX+Alpine stack). Leaning CDN-JS — fits the Phase 4 pattern, no new Python deps, charts render with the page's theme.
+- **Widget data contract.** Does a widget compute its data via a module-supplied async function (`Widget(data=my_fn)`) or a SQL query string? Function is more flexible; query string is easier for the AI generator to emit. Probably both, with the function path as the primary contract.
+- **Permission model.** Per-widget permission (gate at the dashboard page) or per-dashboard (gate at the sidebar link)? Likely per-dashboard, because dashboards tend to aggregate data the user is already entitled to see elsewhere.
+- **Caching.** Whether widgets cache results in Redis for a short TTL. Almost certainly yes; cache key includes user perms so permission changes propagate.
+
+### Phase 9 — Reports + PDF generation
+
+**Scope.** Shell gains a `/reports` surface. Modules declare `Report` objects: a Jinja template (HTML + print CSS) + an optional parameter form + a data-fetcher function. Users preview in the browser and export to PDF. Contacts gets a "Contacts directory" report (filter by company, paginated list) as the reference. No scheduled/emailed reports in this phase — that becomes trivial once Phase 10's workflow engine can invoke a report action.
+
+**Key decisions for the brainstorm:**
+- **PDF engine.** `WeasyPrint` (pure Python, CSS-print model, no browser subprocess — matches our "no npm" ethos) vs `Playwright` (pixel-perfect but needs a browser on the shell image, overlaps with Phase 11's screenshots). Leaning WeasyPrint unless Phase 11 lands first and we already have Playwright.
+- **Parameter forms.** Templated-Pydantic form (shell auto-renders from a `BaseModel` subclass) vs module-author writes the form HTML. Pydantic auto-render wins for consistency; modules can override when they need custom UX.
+- **Export formats.** PDF is primary. CSV/XLSX is separate enough that it's probably a Phase 9.5 or its own concern in Phase 10 (workflows can export to CSV and attach).
+- **Page layout primitives.** We'll ship a base report template (`_report_base.html`) with header/footer/pagination slots. Margin math and print CSS conventions need to be documented in `docs/module-authoring.md`.
+
+### Phase 10 — Workflows
+
+**Scope.** Shell introduces a workflow engine: state-machine definitions, triggers, actions, audit log. Modules declare `Workflow` objects tied to a model class. Triggers: `on_create` / `on_update(field)` / `on_schedule(cron)` / `manual`. Actions: `update_field`, `send_email`, `call_webhook`, `run_module_function`, `generate_report` (hooks into Phase 9), `emit_audit`. ARQ arrives as first-class infrastructure — the worker is a second service in docker-compose, the shell image gets an `entrypoint worker` subcommand. Contacts gets a "new contact welcome" workflow as the reference.
+
+**Key decisions for the brainstorm:**
+- **State representation.** A dedicated `workflow_instances` table that stores current state + history, or state as a column on the model's own row? Dedicated table keeps concerns clean and lets multiple workflows run on the same model.
+- **Action safety.** Actions are code that runs against production data — every action declaration needs a capability and re-uses the Phase 7a gate when an AI-generated module declares a workflow. Long-running actions always run in ARQ, never inline.
+- **Triggers as events.** The shell emits events (`contacts.contact.created`) and workflows subscribe. This gives us a clean substrate for audit logs and future webhooks. Needs a small event-bus abstraction.
+- **UI.** Admin surface for "workflows on this model", "running instances", "audit log". Maybe a visual editor eventually; start with a read-only UI that renders the YAML/Python declaration.
+- **Scope creep risk.** Workflows is the biggest phase since Phase 5. Expect to decompose into 10a (engine + synchronous triggers), 10b (scheduled triggers + ARQ), 10c (action library + audit UI). The brainstorm should decide whether to decompose up front.
+
+### Phase 11 — Sandbox preview enrichment
+
+**Scope.** Picks up from Phase 7c. When a candidate lands in the sandbox, we seed sample records into its schema (Claude generates a `seed.py` as part of the module), take Playwright screenshots of every declared route at common viewport sizes, and surface the results in the sandbox detail page. Moves the current "click through it live" preview to "look at these 6 screenshots". Uses ARQ (landed in Phase 10) to run the screenshot rendering off-request.
+
+**Key decisions for the brainstorm:**
+- **Sample-data source.** Claude emits a `seed.py` with `create_*` calls via the SDK, or the shell generates synthetic data from the model schema using `polyfactory`/similar. Both; Claude-authored by default, synthetic fallback when no seed is supplied.
+- **Playwright in the shell image.** Big image bump (~400 MB for Chrome). Worth it — alternative is a separate service, which is more infra than we want here.
+- **Screenshot storage.** Local filesystem under `var/sandbox/<uuid>/previews/` (easy, same as sandbox files) vs object storage (clean, but no S3 dep yet). Local for Phase 11; object storage is a Future concern.
+- **Viewport matrix.** Mobile (375×), tablet (768×), desktop (1280×). Each route × each viewport = 3 images. Capped at ~30 screenshots per sandbox to bound runtime/storage.
+
+### Why this ordering
+
+Dashboards and reports are both "module output" primitives but have distinct stacks; shipping them separately keeps each phase focused. Workflows lands third because reports can emit a nice side effect for workflow actions ("generate + email report X on the first of every month"). Preview enrichment comes last because it builds on ARQ (introduced in workflows) and isn't a user-facing feature — it's polish on the AI-generator UX. Multi-tenancy, OIDC/SAML, module registry, and non-Python DB options all stay in Future until the platform has real users driving the prioritisation.
 
 ## Conventions
 
@@ -194,9 +246,7 @@ uv run parcel serve                     # Production server
 
 ## Things NOT to do
 
-- Don't add multi-tenancy code before Phase 8+. Single-tenant is the MVP contract.
-- Don't add OIDC/SAML before Phase 2 is done and stable.
-- Don't build a module registry before Phase 7 is done and real users exist.
+- Don't add multi-tenancy, OIDC/SAML, or a module registry — all three are in the Future row and stay there until the platform has real users driving the priority. The upcoming phases (8-11) all assume single-tenant, cookie-session auth, and local module discovery.
 - Don't introduce new top-level dependencies without updating this file and `pyproject.toml` in the same commit.
 - Don't create new top-level directories without updating this file.
 - Don't let the AI generator write to production schemas directly. Sandbox first, always.

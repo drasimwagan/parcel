@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phases 1–7 complete (minus the preview enrichment work that moved to Phase 8). Phase 7c adds a browser chat surface at `/ai` on top of 7b's generator — persistent sessions, HTMX polling, each admin turn kicks off an async background task that runs `generate_module` and posts the result back. Boot-time sweep recovers any turns stuck in `generating` after a restart. 259-test suite. Phase 8 (sandbox preview enrichment — sample records + Playwright screenshots + ARQ worker) is next.
+**Status:** Pre-alpha. Phases 1–7 complete. Phase 7c adds a browser chat surface at `/ai` on top of 7b's generator — persistent sessions, HTMX polling, each admin turn kicks off an async background task that runs `generate_module` and posts the result back. Boot-time sweep recovers any turns stuck in `generating` after a restart. 259-test suite. The next four phases build out the core business-app primitives every module needs: **8 Dashboards**, **9 Reports/PDF**, **10 Workflows**, **11 Sandbox preview enrichment**.
 
 ## Vision
 
@@ -126,9 +126,16 @@ Visit `/ai` in the admin UI. Create a session, type a prompt, submit. The page s
 
 Each turn is an independent generation — the model doesn't see prior turns. Start a new session when you want to try a completely different direction.
 
-### What Phase 8 will add
+### What's next
 
-Sandbox preview enrichment: sample records seeded into the sandbox at install time, Playwright screenshots of rendered views so admins can judge an AI-drafted module without clicking through it live, and the ARQ worker queue to run that rendering off-request.
+Four upcoming phases, in order:
+
+- **Phase 8 — Dashboards.** Module-authored KPI cards + charts + live-query tables at `/dashboards`. Contacts will gain an "overview" dashboard as the reference.
+- **Phase 9 — Reports + PDF.** Templated, parameterised, printable/exportable reports (WeasyPrint). Contacts gets a "directory" PDF.
+- **Phase 10 — Workflows.** State machines, triggers (on-create / on-update / on-schedule / manual), actions (update fields, send email, call webhook, generate report, run module function). Introduces ARQ as first-class infrastructure.
+- **Phase 11 — Sandbox preview enrichment.** Sample-record seeding + Playwright screenshots of sandbox routes so admins can judge an AI-drafted module without clicking through it live. Builds on ARQ from Phase 10.
+
+See `CLAUDE.md` under "Upcoming phases" for the scope and open questions of each.
 
 ## Roadmap
 
