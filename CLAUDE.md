@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 6 — SDK polish + `parcel` CLI done.** `parcel-sdk` now exposes `parcel_sdk.shell_api`, a stable facade (6 functions: `get_session`, `require_permission`, `set_flash`, `get_templates`, `sidebar_for`, `effective_permissions`, plus a shared `Flash` dataclass). The shell registers `DefaultShellBinding` via `shell_api.bind()` at `create_app()` time; modules import only `parcel_sdk.*`. `modules/contacts` has zero runtime `parcel_shell` imports and dropped `parcel-shell` from its runtime deps. A new `parcel` CLI (typer) ships `new-module`, `install`, `migrate`, `dev`, `serve`. `install`/`migrate` reuse the shell service layer via `asgi-lifespan.LifespanManager` instead of HTTP. 196-test suite.
+**Phase 7a — Static-analysis gate + sandbox install done.** Phase 7 is decomposed into 7a (gate + sandbox), 7b (Claude API), 7c (chat UI + preview UX). `parcel-gate` is a new workspace package: `ruff` (subprocess, structured JSON) + `bandit` (in-process) + custom AST policy with 4 capability unlocks (`filesystem`, `process`, `network`, `raw_sql`) and hard blocks on `sys`/`importlib` imports, `parcel_shell.*` imports, the four dangerous builtin calls, and dunder-escape attributes. Tests/caches are excluded — the gate only examines runtime code. Sandbox install lands candidates in `var/sandbox/<uuid>/`, loads via `importlib.util` (unique `sys.modules` alias per sandbox), migrates into `mod_sandbox_<uuid>`, mounts at `/mod-sandbox/<uuid>`, with a 7-day TTL. Admin surfaces: `/sandbox` HTML + `/admin/sandbox` JSON; three permissions (`sandbox.read`/`install`/`promote`); `parcel sandbox install|list|show|promote|dismiss|prune` CLI. Promote copies files to `modules/<name>/` and runs the real install path. 224-test suite.
 
-Next: **Phase 7 — AI module generator.** Start a new session; prompt: "Begin Phase 7 per `CLAUDE.md` roadmap." Do not begin Phase 7 inside the Phase 6 commit cluster.
+Next: **Phase 7b — Claude API generator.** Start a new session; prompt: "Begin Phase 7b per `CLAUDE.md` roadmap." Do not begin Phase 7b inside the Phase 7a commit cluster.
 
 ## Locked-in decisions
 
@@ -76,6 +76,16 @@ Next: **Phase 7 — AI module generator.** Start a new session; prompt: "Begin P
 | CLI scope | `parcel new-module <name>` scaffolds; `parcel install <path-or-git-url>` pip-installs + activates newly-discovered modules via the shell service layer; `parcel migrate [--module N]` upgrades; `parcel dev`/`serve` wrap `uvicorn.run("parcel_shell.app:create_app", factory=True, …)`. |
 | CLI `install` semantics | Talks to the DB directly via `asgi_lifespan.LifespanManager` + `parcel_shell.modules.service.install_module`. Auto-approves capabilities (user explicitly invoked the command) but echoes them so the operator sees the grant. |
 | Contacts runtime deps | `parcel-mod-contacts` v0.2.0 runtime deps are `parcel-sdk` + `fastapi` only; `parcel-shell` moved to `[dependency-groups] dev` for tests. |
+| Phase 7 decomposition | 7a = gate + sandbox (no AI). 7b = Claude API generator (no chat). 7c = chat UI + preview UX. Separate cycles to keep the static gate battle-tested before AI output feeds into it. |
+| Capability vocabulary | 4 values: `filesystem` (unlocks `os`, `open()`), `process` (unlocks `subprocess`), `network` (unlocks `socket`/`urllib`/`http*`/`httpx`/`requests`/`aiohttp`), `raw_sql` (unlocks `sqlalchemy.text(...)`). |
+| Gate hard-blocks | `sys`/`importlib` imports, `parcel_shell.*` imports, calls to the four dynamic-code builtins (eval/exec/compile/__import__), dunder-escape attrs (`__class__`/`__subclasses__`/`__globals__`/`__builtins__`/`__mro__`/`__code__`). No capability unlocks these. |
+| Gate placement | Runs on the sandbox-install path only. `parcel install` / `POST /admin/modules/install` stay unchanged (trusted input). Tests and `__pycache__` are excluded — runtime code only. |
+| `parcel-gate` deps | `ruff>=0.6,<0.9` (subprocess, structured JSON with `--isolated --line-length=100 --ignore=E501,W291,W292,W293`), `bandit>=1.7,<2.0` (in-process via `BanditManager`). |
+| Sandbox isolation | Logical only: same Postgres, `mod_sandbox_<uuid>` schema, same process, same DB pool. Files in `var/sandbox/<uuid>/` (gitignored, `var/.gitkeep` tracked). Loaded via `importlib.util.spec_from_file_location` with unique `sys.modules` name (`parcel_mod_<name>__sandbox_<short-uuid>`) to avoid collisions. |
+| Sandbox schema Alembic | `module.metadata.schema = "mod_sandbox_<uuid>"` is patched in-memory before `alembic upgrade`; `sys.modules[package_name]` is temporarily aliased to the sandbox copy so env.py's `from parcel_mod_X import module` resolves, then restored in a try/finally. |
+| Sandbox lifecycle | 7-day TTL. Dismiss: DROP SCHEMA + rm files + row stays for audit. Promote: copy files → `modules/<target_name>/`, rewrite package-name references, `uv pip install -e`, run `install_module`, then dismiss. Data in the sandbox is NOT copied to the real install. |
+| Sandbox UI | `/sandbox` (list) + `/sandbox/new` (upload) + `/sandbox/<uuid>` (detail with gate report); JSON parallel at `/admin/sandbox`. Sidebar section "AI Lab". Permissions `sandbox.read`/`install`/`promote` attached to `admin` role by migration 0004. |
+| Sandbox CLI | `parcel sandbox install <path>` / `list` / `show <uuid>` / `promote <uuid> <name> [-c cap …]` / `dismiss <uuid>` / `prune`. All reuse `with_shell()` via asgi-lifespan. |
 
 ## Repository layout
 
@@ -126,7 +136,9 @@ contacts = "parcel_mod_contacts:module"
 | 4 | ✅ done | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
 | 5 | ✅ done | Contacts demo module end-to-end |
 | 6 | ✅ done | SDK polish + `parcel` CLI |
-| 7 | ⏭ next | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |
+| 7a | ✅ done | Static-analysis gate + sandbox install (no AI yet) |
+| 7b | ⏭ next | Claude API generator — chat, draft, hand off to the gate/sandbox |
+| 7c |  | Chat UI + richer sandbox preview (sample records, screenshots of views) |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.
