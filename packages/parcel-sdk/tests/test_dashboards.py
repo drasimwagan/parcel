@@ -67,3 +67,10 @@ def test_kpi_optional_delta():
 def test_widget_default_col_span_is_two():
     w = HeadlineWidget(id="h", title="t", text="x")
     assert w.col_span == 2
+
+
+def test_all_chart_widgets_construct():
+    async def _fn(_ctx): ...
+    assert LineWidget(id="l", title="Line", data=_fn).id == "l"
+    assert BarWidget(id="b", title="Bar", data=_fn).id == "b"
+    assert TableWidget(id="t", title="Table", data=_fn).id == "t"
