@@ -8,7 +8,8 @@ if TYPE_CHECKING:
     from fastapi import APIRouter  # noqa: F401
     from sqlalchemy import MetaData  # noqa: F401
 
-from parcel_sdk.dashboards import Dashboard
+    from parcel_sdk.dashboards import Dashboard
+
 from parcel_sdk.sidebar import SidebarItem
 
 
