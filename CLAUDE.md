@@ -169,15 +169,15 @@ contacts = "parcel_mod_contacts:module"
 
 Every module on Parcel will end up needing some mix of **dashboards** (glance-at-a-KPI, live-query tables), **reports** (printable/exportable point-in-time documents), and **workflows** (state transitions with triggered actions). Today the Contacts module has none of these, which is why they're the next three phases. Each one adds a shell-level primitive the SDK exposes so every future module gets it for free.
 
-### Phase 8 — Dashboards
+### Phase 8 — Dashboards ✅ shipped
 
-**Scope.** Shell grows a `/dashboards` surface. Modules declare `Dashboard` objects in their manifest (same pattern as `sidebar_items`). Each dashboard is a list of `Widget` specs: KPI cards (single scalar with trend), line/bar charts, tables, headlines. Widgets render server-side (HTMX partial) and re-fetch their own data independently — a slow query doesn't block the rest of the page. Contacts gets a "Contacts overview" dashboard as the reference: total contacts KPI, new-this-week line chart, recent-activity table.
+Shipped in PR #14. See the "Dashboard *" rows under "Locked-in decisions" for the concrete contracts. Chart library landed as Chart.js 4.4.1 via CDN. Widget data contract is async-function-primary with `scalar_query`/`series_query`/`table_query` SDK helpers for common shapes. Permission model is per-dashboard (module's own permission, e.g. `contacts.read`). Caching deferred — no widget caching in Phase 8; revisit when a widget proves slow, likely riding Phase 10's ARQ/Redis infrastructure.
 
-**Key decisions for the brainstorm:**
-- **Chart library.** Server-render SVG (e.g. `pygal`, `matplotlib`) vs HTMX-fetches-JSON + a client-side lib (Chart.js or ECharts via CDN, matches existing Tailwind+HTMX+Alpine stack). Leaning CDN-JS — fits the Phase 4 pattern, no new Python deps, charts render with the page's theme.
-- **Widget data contract.** Does a widget compute its data via a module-supplied async function (`Widget(data=my_fn)`) or a SQL query string? Function is more flexible; query string is easier for the AI generator to emit. Probably both, with the function path as the primary contract.
-- **Permission model.** Per-widget permission (gate at the dashboard page) or per-dashboard (gate at the sidebar link)? Likely per-dashboard, because dashboards tend to aggregate data the user is already entitled to see elsewhere.
-- **Caching.** Deferred. Phase 8 ships with no widget caching — revisit with real data when a specific widget proves slow, likely riding Phase 10's ARQ/Redis infrastructure. Cache key, when added, must include user perms so permission changes propagate.
+**Known Phase 8 follow-ups (non-blocking, land opportunistically):**
+
+- AI-generator SQL-string risk: the SDK query helpers accept an arbitrary `sql` string. When Phase 11 wires AI-generated modules into dashboards, the static-analysis gate needs a rule that the first arg to `scalar_query`/`series_query`/`table_query` is a string literal (not an f-string / concatenation).
+- `Dashboard.permission` isn't validated against the permission registry at boot — a typo silently mounts a dashboard that no user can see. Add a boot-time `structlog.warning` in `sync_active_modules` when a dashboard's permission isn't registered.
+- Chart.js 4.4.1 CDN is loaded from `_base.html` on every admin page (~200 KB). Worth moving to a `{% block head_extra %}` slot that only dashboard detail pages opt into.
 
 ### Phase 9 — Reports + PDF generation
 
