@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+
 import typer
+import uvicorn
 
 
 def dev(
@@ -9,4 +12,12 @@ def dev(
     reload: bool = typer.Option(True, "--reload/--no-reload"),
 ) -> None:
     """Run the shell with hot-reload (development)."""
-    raise typer.Exit(0)
+    os.environ.setdefault("PARCEL_ENV", "dev")
+    uvicorn.run(
+        "parcel_shell.app:create_app",
+        factory=True,
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )

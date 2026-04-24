@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typer
+import uvicorn
 
 
 def serve(
@@ -9,4 +10,11 @@ def serve(
     workers: int = typer.Option(1, "--workers"),
 ) -> None:
     """Run the shell in production mode."""
-    raise typer.Exit(0)
+    uvicorn.run(
+        "parcel_shell.app:create_app",
+        factory=True,
+        host=host,
+        port=port,
+        workers=workers,
+        log_level="info",
+    )
