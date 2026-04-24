@@ -19,9 +19,7 @@ from parcel_shell.ui.templates import get_templates
 router = APIRouter(tags=["ui", "ai-chat"])
 
 
-async def _ctx(
-    request: Request, user: Any, db: AsyncSession, path: str
-) -> dict[str, Any]:
+async def _ctx(request: Request, user: Any, db: AsyncSession, path: str) -> dict[str, Any]:
     perms = await rbac_service.effective_permissions(db, user.id)
     return {
         "user": user,
@@ -88,10 +86,7 @@ async def ai_session_detail(
             "session": session_row,
             "turns": turns,
             "polling": _any_generating(turns),
-            "provider_configured": getattr(
-                request.app.state, "ai_provider", None
-            )
-            is not None,
+            "provider_configured": getattr(request.app.state, "ai_provider", None) is not None,
         },
     )
 

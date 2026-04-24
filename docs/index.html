@@ -45,7 +45,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phases 1–6 + 7a + 7b complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, gate + sandbox, and the Claude generator (API + CLI providers). Phase 7c (chat UI) up next.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–7 complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, gate + sandbox, Claude generator, and the chat surface at <code>/ai</code>. Phase 8 (preview enrichment) up next.</div>
   </div>
 </section>
 
@@ -147,8 +147,13 @@
       </li>
       <li>
         <span class="phase-num">7c</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">AI chat UI — persistent sessions, HTMX polling, background task per turn, boot-time orphan sweep</span>
+      </li>
+      <li>
+        <span class="phase-num">8</span>
         <span class="phase-status next">⏭ next</span>
-        <span class="phase-goal">Chat UI + richer sandbox preview (sample records, screenshots of views)</span>
+        <span class="phase-goal">Sandbox preview enrichment — sample-record seeding, Playwright screenshots, ARQ worker</span>
       </li>
     </ul>
   </div>
@@ -180,7 +185,7 @@ uv run parcel sandbox promote &lt;uuid&gt; new_mod       <span style="color: var
 <pre><code>uv run parcel ai generate "track invoices with number, amount, date"
 <span style="color: var(--fg-muted"># ✓ sandbox &lt;uuid&gt; at /mod-sandbox/&lt;short&gt;/</span></code></pre>
     <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
-<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 242 tests, ~50s</span></code></pre>
+<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 259 tests, ~60s</span></code></pre>
   </div>
 </section>
 

@@ -23,12 +23,8 @@ class AISession(ShellBase):
         nullable=False,
     )
     title: Mapped[str] = mapped_column(Text, nullable=False, default="(untitled)")
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
 
 
 class AITurn(ShellBase):
@@ -47,7 +43,5 @@ class AITurn(ShellBase):
     failure_kind: Mapped[str | None] = mapped_column(Text)
     failure_message: Mapped[str | None] = mapped_column(Text)
     gate_report: Mapped[dict | None] = mapped_column(JSONB)
-    started_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
+    started_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))

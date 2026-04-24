@@ -60,11 +60,7 @@ async def get_session(
 
 
 async def get_turns(db: AsyncSession, session_id: uuid.UUID) -> Sequence[AITurn]:
-    stmt = (
-        select(AITurn)
-        .where(AITurn.session_id == session_id)
-        .order_by(AITurn.idx.asc())
-    )
+    stmt = select(AITurn).where(AITurn.session_id == session_id).order_by(AITurn.idx.asc())
     return (await db.execute(stmt)).scalars().all()
 
 
@@ -73,18 +69,14 @@ async def count_session_turns(db: AsyncSession, session_id: uuid.UUID) -> int:
     return int((await db.execute(stmt)).scalar_one())
 
 
-async def add_turn(
-    db: AsyncSession, session_id: uuid.UUID, prompt: str
-) -> AITurn:
+async def add_turn(db: AsyncSession, session_id: uuid.UUID, prompt: str) -> AITurn:
     session_row = await db.get(AISession, session_id)
     if session_row is None:
         raise ValueError(f"session not found: {session_id}")
 
     next_idx = (
         await db.execute(
-            select(func.coalesce(func.max(AITurn.idx), 0)).where(
-                AITurn.session_id == session_id
-            )
+            select(func.coalesce(func.max(AITurn.idx), 0)).where(AITurn.session_id == session_id)
         )
     ).scalar_one() + 1
 
@@ -116,9 +108,7 @@ def _title_from_prompt(prompt: str) -> str:
     return trimmed[: _TITLE_MAX - 1].rstrip() + "…"
 
 
-async def mark_succeeded(
-    db: AsyncSession, turn_id: uuid.UUID, *, sandbox_id: uuid.UUID
-) -> None:
+async def mark_succeeded(db: AsyncSession, turn_id: uuid.UUID, *, sandbox_id: uuid.UUID) -> None:
     turn = await db.get(AITurn, turn_id)
     if turn is None:
         return

@@ -5,11 +5,11 @@ import uuid
 from pathlib import Path
 
 import pytest
+from _fake_provider import FakeProvider
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from _fake_provider import FakeProvider
 from parcel_shell.ai.chat import service as chat_service
 from parcel_shell.ai.chat.models import AISession, AITurn
 from parcel_shell.config import Settings
@@ -28,9 +28,7 @@ def _contacts_files() -> dict[str, bytes]:
 
 
 @pytest.mark.asyncio
-async def test_list_page_renders(
-    committing_admin: AsyncClient, committing_app: FastAPI
-) -> None:
+async def test_list_page_renders(committing_admin: AsyncClient, committing_app: FastAPI) -> None:
     r = await committing_admin.get("/ai")
     assert r.status_code == 200
     assert "AI Generator" in r.text
@@ -62,9 +60,7 @@ async def test_status_fragment_returns_turn_list(
 
         async with factory() as db:
             turn = await chat_service.add_turn(db, sid, "test prompt")
-            await chat_service.mark_succeeded(
-                db, turn.id, sandbox_id=uuid.uuid4()
-            )
+            await chat_service.mark_succeeded(db, turn.id, sandbox_id=uuid.uuid4())
             await db.commit()
 
         r = await committing_admin.get(f"/ai/sessions/{sid}/status")
@@ -103,9 +99,7 @@ async def test_add_turn_kicks_off_background_task(
                 turn = (
                     await db.execute(
                         # Get the single turn on this session.
-                        __import__("sqlalchemy")
-                        .select(AITurn)
-                        .where(AITurn.session_id == sid)
+                        __import__("sqlalchemy").select(AITurn).where(AITurn.session_id == sid)
                     )
                 ).scalar_one_or_none()
                 if turn and turn.status != "generating":
@@ -118,10 +112,9 @@ async def test_add_turn_kicks_off_background_task(
 
         # Clean up the sandbox.
         from parcel_shell.sandbox import service as sandbox_service
+
         async with factory() as db:
-            await sandbox_service.dismiss_sandbox(
-                db, turn.sandbox_id, committing_app
-            )
+            await sandbox_service.dismiss_sandbox(db, turn.sandbox_id, committing_app)
             await db.commit()
     finally:
         await engine.dispose()

@@ -4,10 +4,10 @@ import uuid
 from pathlib import Path
 
 import pytest
+from _fake_provider import FakeProvider
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from _fake_provider import FakeProvider
 from parcel_shell.ai.chat import service as chat_service
 from parcel_shell.ai.chat.models import AITurn
 from parcel_shell.ai.chat.worker import run_turn
@@ -73,9 +73,7 @@ async def test_run_turn_success_marks_succeeded(
             # Clean up the sandbox we created.
             from parcel_shell.sandbox import service as sandbox_service
 
-            await sandbox_service.dismiss_sandbox(
-                db, turn.sandbox_id, committing_app
-            )
+            await sandbox_service.dismiss_sandbox(db, turn.sandbox_id, committing_app)
             await db.commit()
     finally:
         await factory.kw["bind"].dispose()
@@ -112,9 +110,7 @@ async def test_run_turn_gate_rejection_marks_failed_with_report(
 ) -> None:
     turn_id, factory = await _setup_turn(settings, "bad")
     bad = {
-        "pyproject.toml": (
-            b'[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n'
-        ),
+        "pyproject.toml": (b'[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n'),
         "src/parcel_mod_bad/__init__.py": (
             b"import os\nfrom parcel_sdk import Module\n"
             b"module = Module(name='bad', version='0.1.0')\n"

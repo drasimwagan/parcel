@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phases 1–6 + 7a + 7b complete. Phase 7b wires the Claude API (and an optional Claude Code CLI fallback) in front of the 7a gate + sandbox — `POST /admin/ai/generate` or `parcel ai generate "<prompt>"` produces a candidate module and either installs it into a sandbox or returns a structured failure with the gate report. One-turn auto-repair on rejection. 242-test suite. Phase 7c (chat UI + richer preview) is next.
+**Status:** Pre-alpha. Phases 1–7 complete (minus the preview enrichment work that moved to Phase 8). Phase 7c adds a browser chat surface at `/ai` on top of 7b's generator — persistent sessions, HTMX polling, each admin turn kicks off an async background task that runs `generate_module` and posts the result back. Boot-time sweep recovers any turns stuck in `generating` after a restart. 259-test suite. Phase 8 (sandbox preview enrichment — sample records + Playwright screenshots + ARQ worker) is next.
 
 ## Vision
 
@@ -120,9 +120,15 @@ The generator calls the configured provider, zips the result, runs it through th
 
 The same flow is available over HTTP: `POST /admin/ai/generate {"prompt": "..."}` (requires the `ai.generate` permission).
 
-### What Phase 7c will add
+### Chat with the generator (Phase 7c)
 
-The chat UI — a browser surface to iterate on prompts, see intermediate state, and accept or reject candidates without re-running the whole pipeline. Richer preview too: sample records seeded into the sandbox, screenshots of the rendered views, so admins can judge an AI-drafted module without clicking through it live.
+Visit `/ai` in the admin UI. Create a session, type a prompt, submit. The page shows a spinner while the background task runs `generate_module()` (30-90s), then updates automatically when the turn is done — either a green card with a link to the sandbox, or a red card with the gate report for debugging. Write another prompt on the same session to iterate. Sessions persist across shell restarts; interrupted turns are marked `failed(process_restart)` on next boot so nothing stays stuck.
+
+Each turn is an independent generation — the model doesn't see prior turns. Start a new session when you want to try a completely different direction.
+
+### What Phase 8 will add
+
+Sandbox preview enrichment: sample records seeded into the sandbox at install time, Playwright screenshots of rendered views so admins can judge an AI-drafted module without clicking through it live, and the ARQ worker queue to run that rendering off-request.
 
 ## Roadmap
 
