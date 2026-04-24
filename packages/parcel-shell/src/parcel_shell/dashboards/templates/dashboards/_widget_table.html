@@ -1,0 +1,15 @@
+<div class="border rounded p-4 overflow-x-auto">
+  <div class="text-sm text-gray-500 mb-2">{{ widget.title }}</div>
+  <table class="min-w-full text-sm">
+    <thead>
+      <tr>{% for c in data.columns %}<th class="text-left pr-4 pb-1 font-medium">{{ c }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in data.rows %}
+      <tr class="border-t">
+        {% for cell in row %}<td class="pr-4 py-1">{{ cell }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,22 @@
+<div class="border rounded p-4">
+  <div class="text-sm text-gray-500 mb-2">{{ widget.title }}</div>
+  <canvas id="chart-{{ widget.id }}" height="180"></canvas>
+  <script>
+  (function(){
+    var el = document.getElementById("chart-{{ widget.id }}");
+    if (!el || typeof Chart === "undefined") return;
+    new Chart(el, {
+      type: "bar",
+      data: {
+        labels: {{ data.labels | tojson }},
+        datasets: [{% for ds in data.datasets %}{
+          label: {{ ds.label | tojson }},
+          data: {{ ds.values | tojson }},
+          backgroundColor: "rgba(59, 130, 246, 0.6)",
+        }{% if not loop.last %},{% endif %}{% endfor %}],
+      },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+  })();
+  </script>
+</div>
