@@ -45,6 +45,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.redis = redis_async.from_url(settings.redis_url, decode_responses=True)
         app.state.settings = settings
 
+        from parcel_shell.ai.provider import build_provider
+
+        try:
+            app.state.ai_provider = build_provider(settings)
+        except ValueError as exc:
+            app.state.ai_provider = None
+            log.warning("ai.provider.not_configured", reason=str(exc))
+
         async with sessionmaker() as s:
             await permission_registry.sync_to_db(s)
             await s.commit()
@@ -85,6 +93,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from parcel_shell.sandbox.router_admin import router as sandbox_admin_router
 
     app.include_router(sandbox_admin_router)
+
+    from parcel_shell.ai.router_admin import router as ai_admin_router
+
+    app.include_router(ai_admin_router)
 
     # HTML UI (Phase 4). Lazy imports keep this resilient if a router fails to load.
     from parcel_shell.ui.routes.auth import router as ui_auth_router

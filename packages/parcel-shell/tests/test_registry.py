@@ -49,6 +49,7 @@ def test_register_shell_permissions() -> None:
         "sandbox.read",
         "sandbox.install",
         "sandbox.promote",
+        "ai.generate",
         "modules.read",
         "modules.install",
         "modules.upgrade",
