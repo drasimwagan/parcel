@@ -1,22 +1,20 @@
 [project]
 name = "parcel-mod-contacts"
-version = "0.1.0"
+version = "0.2.0"
 description = "Parcel demo module — Contacts / CRM lite"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "parcel-sdk",
-    # Phase 5 pragmatic concession: Contacts module imports shell hooks
-    # (get_session, html_require_permission, sidebar_for, etc.) directly from
-    # parcel-shell. Phase 6 ("SDK polish") extracts a stable SDK facade so
-    # modules no longer depend on parcel-shell internals.
-    "parcel-shell",
     "fastapi>=0.115",
 ]
 
 [project.entry-points."parcel.modules"]
 contacts = "parcel_mod_contacts:module"
+
+[dependency-groups]
+dev = ["parcel-shell"]
 
 [tool.uv.sources]
 parcel-sdk = { workspace = true }

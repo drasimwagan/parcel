@@ -1,17 +1,24 @@
 [project]
 name = "parcel-cli"
-version = "0.0.0"
+version = "0.1.0"
 description = "Parcel CLI — new-module scaffolder, dev server launcher, module installer"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    # Phase 6 will populate (typer, rich, jinja2, etc.).
+    "typer>=0.12",
+    "parcel-sdk",
+    "parcel-shell",
+    "asgi-lifespan>=2.1",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.scripts]
-# Phase 6 will wire this up:
-# parcel = "parcel_cli.__main__:main"
+parcel = "parcel_cli.main:app"
+
+[tool.uv.sources]
+parcel-sdk = { workspace = true }
+parcel-shell = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 5 — Contacts demo module done.** `parcel-sdk` gained `Module.router` / `Module.templates_dir` / `Module.sidebar_items` plus a `SidebarItem` dataclass. Shell mounts active modules on install and at lifespan startup: router goes under `/mod/<name>/*`, templates dir is prepended to the Jinja loader, sidebar items render as a dedicated section. Module install also attaches the module's permissions to the built-in `admin` role. The Contacts module (`modules/contacts`) ships Contact + Company entities, `contacts.read` + `contacts.write`, roomy two-line list pages with live HTMX search, form-first detail pages. 170-test suite.
+**Phase 6 — SDK polish + `parcel` CLI done.** `parcel-sdk` now exposes `parcel_sdk.shell_api`, a stable facade (6 functions: `get_session`, `require_permission`, `set_flash`, `get_templates`, `sidebar_for`, `effective_permissions`, plus a shared `Flash` dataclass). The shell registers `DefaultShellBinding` via `shell_api.bind()` at `create_app()` time; modules import only `parcel_sdk.*`. `modules/contacts` has zero runtime `parcel_shell` imports and dropped `parcel-shell` from its runtime deps. A new `parcel` CLI (typer) ships `new-module`, `install`, `migrate`, `dev`, `serve`. `install`/`migrate` reuse the shell service layer via `asgi-lifespan.LifespanManager` instead of HTTP. 196-test suite.
 
-Next: **Phase 6 — SDK polish + `parcel` CLI.** Start a new session; prompt: "Begin Phase 6 per `CLAUDE.md` roadmap." Do not begin Phase 6 inside the Phase 5 commit cluster.
+Next: **Phase 7 — AI module generator.** Start a new session; prompt: "Begin Phase 7 per `CLAUDE.md` roadmap." Do not begin Phase 7 inside the Phase 6 commit cluster.
 
 ## Locked-in decisions
 
@@ -70,7 +70,12 @@ Next: **Phase 6 — SDK polish + `parcel` CLI.** Start a new session; prompt: "B
 | Module URL prefix | `/mod/<name>/*`. Template dir prepended to Jinja loader; sidebar items rendered as a per-module section. |
 | Module install + admin role | `install_module` assigns the module's permissions to the built-in `admin` role so admins inherit every capability across shell + modules. |
 | Module removal on uninstall | Routes stay mounted until next process restart (FastAPI doesn't support clean router removal). Soft uninstall flips `is_active=false`; next boot skips mounting. |
-| Module→shell coupling | Phase 5 modules import `parcel_shell.*` hooks directly. Phase 6 extracts a stable `parcel_sdk.shell_api` facade so modules no longer depend on parcel-shell internals. |
+| Module→shell coupling | Broken in Phase 6. Modules import only `parcel_sdk.*`; the shell registers its implementation with `parcel_sdk.shell_api.bind(DefaultShellBinding(settings))` inside `create_app()`. |
+| SDK facade surface | 6 functions: `get_session`, `require_permission`, `set_flash`, `get_templates`, `sidebar_for`, `effective_permissions`. `Flash` dataclass lives in the SDK; shell keeps cookie serialization. Tests bind a default binding at workspace `conftest.py` collection time because FastAPI deps resolve at module-import time. |
+| Phase 6 CLI deps | typer ≥ 0.12, asgi-lifespan ≥ 2.1, uvicorn[standard] ≥ 0.30. CLI is optional; not a shell dep. |
+| CLI scope | `parcel new-module <name>` scaffolds; `parcel install <path-or-git-url>` pip-installs + activates newly-discovered modules via the shell service layer; `parcel migrate [--module N]` upgrades; `parcel dev`/`serve` wrap `uvicorn.run("parcel_shell.app:create_app", factory=True, …)`. |
+| CLI `install` semantics | Talks to the DB directly via `asgi_lifespan.LifespanManager` + `parcel_shell.modules.service.install_module`. Auto-approves capabilities (user explicitly invoked the command) but echoes them so the operator sees the grant. |
+| Contacts runtime deps | `parcel-mod-contacts` v0.2.0 runtime deps are `parcel-sdk` + `fastapi` only; `parcel-shell` moved to `[dependency-groups] dev` for tests. |
 
 ## Repository layout
 
@@ -120,8 +125,8 @@ contacts = "parcel_mod_contacts:module"
 | 3 | ✅ done | Module system: manifest spec, entry-point discovery, migration orchestrator, admin module page |
 | 4 | ✅ done | Admin UI shell: Jinja base layout, Tailwind, HTMX, dynamic sidebar |
 | 5 | ✅ done | Contacts demo module end-to-end |
-| 6 | ⏭ next | SDK polish + `parcel` CLI |
-| 7 |  | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |
+| 6 | ✅ done | SDK polish + `parcel` CLI |
+| 7 | ⏭ next | AI module generator (Claude API, static gate, sandbox, preview, approve flow) |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.
