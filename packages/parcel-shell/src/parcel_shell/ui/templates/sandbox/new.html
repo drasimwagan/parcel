@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}New sandbox — Parcel{% endblock %}
+{% block content %}
+<h2 style="margin: 0 0 16px;">New sandbox</h2>
+
+<p class="muted" style="max-width: 60ch;">
+  Upload a zipped module directory. The candidate is extracted, run through
+  the static-analysis gate, and (if the gate passes) installed at a sandbox
+  URL under its own Postgres schema.
+</p>
+
+<form method="post" action="/sandbox" enctype="multipart/form-data" class="stack">
+  <label>
+    <div style="margin-bottom:4px;">Module zip</div>
+    <input type="file" name="file" accept=".zip" required>
+  </label>
+  <div>
+    <button type="submit" class="btn primary">Install into sandbox</button>
+    <a class="btn" href="/sandbox">Cancel</a>
+  </div>
+</form>
+{% endblock %}

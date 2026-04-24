@@ -73,3 +73,33 @@ The shell's `DefaultShellBinding` implements this Protocol. Modules import only 
 | `parcel migrate [--module N]` | `alembic upgrade head` for one or all installed modules. |
 | `parcel dev` | `uvicorn parcel_shell.app:create_app --factory --reload`. |
 | `parcel serve` | Production uvicorn (no reload, `--workers` configurable). |
+
+## Sandbox & gate (Phase 7a)
+
+A candidate module — a directory tree or a zip — gets run through the static-analysis gate (`parcel-gate`) before it's allowed anywhere near the real schemas. If the gate passes, the candidate is installed under its own Postgres schema and mounted at its own URL; the admin can try it live, then either promote it (copy files to `modules/<name>/` and run the real install path) or dismiss it.
+
+```
+candidate ─┬─> extract to var/sandbox/<uuid>/
+           │
+           ├─> parcel-gate (ruff + bandit + AST policy)
+           │        │
+           │        ├─ pass → install, mount, add shell.sandbox_installs row
+           │        └─ fail → raise GateRejected(report)
+           │
+admin ─────┴─> dismiss (drop schema, rm files) | promote (copy files → real install)
+```
+
+The AST policy's capability vocabulary is minimal on purpose — just four values:
+
+| Capability | Unlocks |
+|---|---|
+| `filesystem` | `import os`, `open()` |
+| `process` | `import subprocess` |
+| `network` | `socket`, `urllib`, `http.*`, `httpx`, `requests`, `aiohttp` |
+| `raw_sql` | `sqlalchemy.text(...)` |
+
+A set of patterns are **always** blocked regardless of capabilities declared: `import sys`, `import importlib`, anything from `parcel_shell.*`, calls to `eval`/`exec`/`compile`/`__import__`, and attribute access to `__class__`/`__subclasses__`/`__globals__`/`__builtins__`/`__mro__`/`__code__`. Tests and `__pycache__` are excluded from the scan — the gate targets runtime code only.
+
+Sandbox isolation is logical, not physical: the sandbox shares the shell's Python process, FastAPI app, and DB pool. The gate is what prevents a sandboxed module from doing damage. Each sandbox module is loaded with a unique `sys.modules` entry (`parcel_mod_<name>__sandbox_<short-uuid>`) so two sandboxes of the same base name coexist. Before Alembic runs, the manifest's `metadata.schema` is patched in-memory to `mod_sandbox_<uuid>`.
+
+Admin surfaces: HTML at `/sandbox`, JSON at `/admin/sandbox`, CLI at `parcel sandbox install|list|show|promote|dismiss|prune`. Three new permissions (`sandbox.read`/`install`/`promote`) attach to the built-in `admin` role via migration 0004.

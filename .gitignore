@@ -84,7 +84,8 @@ redis-data/
 .claude/logs/
 
 # --- Parcel-specific runtime ---
-/var/
+/var/*
+!/var/.gitkeep
 /tmp/
 sandbox-modules/
 *.db

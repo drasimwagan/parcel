@@ -45,7 +45,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phases 1–6 complete: shell, auth + RBAC, module system, admin UI, Contacts demo, SDK facade + <code>parcel</code> CLI. Phase 7 (AI module generator) up next.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–6 + 7a complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, and the static-analysis gate + sandbox install pipeline. Phase 7b (Claude API generator) up next.</div>
   </div>
 </section>
 
@@ -136,9 +136,19 @@
         <span class="phase-goal">SDK polish — <code>parcel_sdk.shell_api</code> facade, <code>parcel</code> CLI (<code>new-module</code>, <code>install</code>, <code>migrate</code>, <code>dev</code>, <code>serve</code>)</span>
       </li>
       <li>
-        <span class="phase-num">7</span>
+        <span class="phase-num">7a</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Static-analysis gate (ruff + bandit + AST policy) + sandbox install (<code>mod_sandbox_&lt;uuid&gt;</code> schema, <code>/mod-sandbox/&lt;uuid&gt;/</code> routes, promote/dismiss)</span>
+      </li>
+      <li>
+        <span class="phase-num">7b</span>
         <span class="phase-status next">⏭ next</span>
-        <span class="phase-goal">AI module generator — Claude API, static gate, sandbox, preview, approve flow</span>
+        <span class="phase-goal">Claude API generator — chat, draft, hand off to the gate/sandbox</span>
+      </li>
+      <li>
+        <span class="phase-num">7c</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">Chat UI + richer sandbox preview (sample records, screenshots of views)</span>
       </li>
     </ul>
   </div>
@@ -162,8 +172,12 @@ curl http://localhost:8000/health/ready    <span style="color: var(--fg-muted)">
 uv run parcel new-module widget            <span style="color: var(--fg-muted)"># writes modules/widget/</span>
 uv run parcel install ./modules/widget     <span style="color: var(--fg-muted)"># pip install -e + activate + migrate</span>
 uv run parcel dev                          <span style="color: var(--fg-muted)"># uvicorn with --reload on :8000</span></code></pre>
+    <p style="margin-top: 1.5rem">Sandbox a candidate module through the static-analysis gate (Phase 7a):</p>
+<pre><code>uv run parcel sandbox install ./modules/contacts  <span style="color: var(--fg-muted)"># gate + install → /mod-sandbox/&lt;uuid&gt;/</span>
+uv run parcel sandbox list                         <span style="color: var(--fg-muted)"># see status + gate verdict</span>
+uv run parcel sandbox promote &lt;uuid&gt; new_mod       <span style="color: var(--fg-muted)"># copy files → real install</span></code></pre>
     <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
-<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 196 tests, ~40s</span></code></pre>
+<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 224 tests, ~50s</span></code></pre>
   </div>
 </section>
 

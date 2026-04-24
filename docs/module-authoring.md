@@ -200,6 +200,32 @@ def test_module_identity() -> None:
 
 Integration tests can import `parcel_shell.*` freely — the SDK-only constraint applies to **runtime/library** code, not tests. The workspace-root `conftest.py` binds `shell_api` at pytest collection time so module imports that reach into `Depends(shell_api.require_permission(...))` at decoration time don't crash.
 
-## Capabilities and sandboxing (preview)
+## Capabilities and the sandbox gate (Phase 7a)
 
-`capabilities=("http_egress",)` flags the module as needing outbound HTTP. Today the install path simply records capabilities on the `InstalledModule` row; Phase 7's AI generator uses them as the enforcement hook (static analysis refuses `socket`/`subprocess`/`os` unless the relevant capability is declared and the admin approves). Human-authored modules are trusted in the current phase — the capability list is informational, not enforced.
+As of Phase 7a, `capabilities` is a real enforcement hook when a module is installed through the sandbox pipeline (admin uploads a zip, or `parcel sandbox install <path>`). The gate runs `ruff` + `bandit` + a custom AST policy and rejects anything that imports or calls a dangerous primitive unless the manifest declares the matching capability.
+
+**The four capability values:**
+
+| Capability | Unlocks |
+|---|---|
+| `filesystem` | `import os`, `open(...)` |
+| `process` | `import subprocess` |
+| `network` | `socket`, `urllib`, `http.*`, `httpx`, `requests`, `aiohttp` |
+| `raw_sql` | `sqlalchemy.text(...)` |
+
+Declare them in the `Module()` manifest:
+
+```python
+module = Module(
+    name="widgets",
+    version="0.1.0",
+    capabilities=("network",),  # module plans to make outbound HTTP calls
+    ...
+)
+```
+
+**Always blocked** regardless of what's declared: `import sys`, `import importlib`, anything from `parcel_shell.*`, calls to the four dynamic-code builtins (`eval`/`exec`/`compile`/`__import__`), and attribute access to sandbox-escape dunders (`__class__`, `__subclasses__`, `__globals__`, `__builtins__`, `__mro__`, `__code__`).
+
+The gate only scans **runtime** code. Tests are allowed to import `parcel_shell.*` or call `subprocess` freely — the SDK-only constraint is a runtime rule, not a test rule.
+
+Human-authored modules installed via `parcel install` or `POST /admin/modules/install` bypass the gate entirely (trusted input). The gate exists so that AI-generated modules — landing in Phase 7b — go through a consistent safety check before the admin sees a preview.

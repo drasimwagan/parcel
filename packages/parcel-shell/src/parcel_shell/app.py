@@ -54,8 +54,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await s.commit()
 
         from parcel_shell.modules.integration import sync_active_modules
+        from parcel_shell.sandbox.service import mount_sandbox_on_boot
 
         await sync_active_modules(app)
+
+        async with sessionmaker() as s:
+            await mount_sandbox_on_boot(s, app)
 
         log.info("shell.startup", env=settings.env)
         try:
@@ -78,6 +82,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_router)
     app.include_router(modules_router)
 
+    from parcel_shell.sandbox.router_admin import router as sandbox_admin_router
+
+    app.include_router(sandbox_admin_router)
+
     # HTML UI (Phase 4). Lazy imports keep this resilient if a router fails to load.
     from parcel_shell.ui.routes.auth import router as ui_auth_router
     from parcel_shell.ui.routes.dashboard import router as ui_dashboard_router
@@ -90,6 +98,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ui_users_router)
     app.include_router(ui_roles_router)
     app.include_router(ui_modules_router)
+
+    from parcel_shell.sandbox.router_ui import router as ui_sandbox_router
+
+    app.include_router(ui_sandbox_router)
 
     @app.exception_handler(HTMLRedirect)
     async def _html_redirect(request: Request, exc: HTMLRedirect) -> RedirectResponse:

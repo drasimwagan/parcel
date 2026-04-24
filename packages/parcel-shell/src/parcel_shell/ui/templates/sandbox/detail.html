@@ -1,0 +1,97 @@
+{% extends "_base.html" %}
+{% block title %}{{ sb.name }} — Sandbox — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+  <h2 style="margin: 0;">{{ sb.name }} <span class="muted">v{{ sb.version }}</span></h2>
+  <a class="btn" href="/sandbox">← All sandboxes</a>
+</div>
+
+<div class="grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+  <div>
+    <h3 style="margin: 0 0 8px;">Manifest</h3>
+    <dl class="dl">
+      <dt>Status</dt>
+      <dd>
+        {% if sb.status == 'active' %}<span class="pill success">active</span>
+        {% elif sb.status == 'promoted' %}<span class="pill">promoted → {{ sb.promoted_to_name }}</span>
+        {% else %}<span class="pill danger">{{ sb.status }}</span>{% endif %}
+      </dd>
+      <dt>URL prefix</dt>
+      <dd><code>{{ sb.url_prefix }}</code></dd>
+      <dt>Schema</dt>
+      <dd><code>{{ sb.schema_name }}</code></dd>
+      <dt>Declared capabilities</dt>
+      <dd>{{ sb.declared_capabilities | join(', ') or '—' }}</dd>
+      <dt>Created</dt>
+      <dd class="muted">{{ sb.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+      <dt>Expires</dt>
+      <dd class="muted">{{ sb.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+    </dl>
+    {% if sb.status == 'active' %}
+    <div style="margin-top: 16px; display:flex; gap:8px;">
+      <a class="btn primary" href="{{ sb.url_prefix }}/">Open live sandbox ↗</a>
+      <form method="post" action="/sandbox/{{ sb.id }}/dismiss" style="margin:0;">
+        <button type="submit" class="btn danger">Dismiss</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <h3 style="margin: 0 0 8px;">Gate report</h3>
+    {% if sb.gate_report.passed %}
+      <p><span class="pill success">✓ passed</span> ({{ sb.gate_report.findings | length }} findings total, all warnings)</p>
+    {% else %}
+      <p><span class="pill danger">✗ failed</span>
+        ({{ sb.gate_report.findings | selectattr('severity', 'equalto', 'error') | list | length }} errors,
+         {{ sb.gate_report.findings | selectattr('severity', 'equalto', 'warning') | list | length }} warnings)</p>
+    {% endif %}
+    <details>
+      <summary class="muted">View findings</summary>
+      <table class="table" style="margin-top:8px;">
+        <thead><tr><th>Check</th><th>Severity</th><th>Path</th><th>Rule</th></tr></thead>
+        <tbody>
+          {% for f in sb.gate_report.findings %}
+          <tr style="background: {% if f.severity == 'error' %}#fff0f0{% else %}#fffaf0{% endif %};">
+            <td><code>{{ f.check }}</code></td>
+            <td>{{ f.severity }}</td>
+            <td><code>{{ f.path }}</code>{% if f.line %}:{{ f.line }}{% endif %}</td>
+            <td><code>{{ f.rule }}</code><br><small class="muted">{{ f.message }}</small></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </div>
+</div>
+
+{% if sb.status == 'active' %}
+<hr style="margin: 24px 0;">
+<h3 style="margin: 0 0 8px;">Promote to a real install</h3>
+<p class="muted" style="max-width: 60ch;">
+  Copies files from the sandbox to <code>modules/&lt;name&gt;/</code>,
+  <code>pip install -e</code>'s it, runs the real install path, and dismisses
+  the sandbox. Data in the sandbox schema is NOT carried over.
+</p>
+<form method="post" action="/sandbox/{{ sb.id }}/promote" class="stack">
+  <label>
+    <div style="margin-bottom:4px;">Target module name</div>
+    <input type="text" name="name" value="{{ sb.name }}" required pattern="[a-z][a-z0-9_]*">
+  </label>
+  {% if sb.declared_capabilities %}
+  <fieldset>
+    <legend>Approve capabilities</legend>
+    {% for cap in sb.declared_capabilities %}
+    <label style="display:block;">
+      <input type="checkbox" name="approve_capabilities" value="{{ cap }}" checked>
+      {{ cap }}
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+  <div>
+    <button type="submit" class="btn primary">Promote</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

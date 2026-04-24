@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phases 1–6 complete. The SDK now exposes a stable `parcel_sdk.shell_api` facade so modules depend only on `parcel-sdk`; a `parcel` CLI ships `new-module`, `install`, `migrate`, `dev`, and `serve`. The bundled Contacts/CRM-lite demo module shows the pattern end-to-end (Contact + Company entities, live HTMX search, two permissions). 196-test suite. Phase 7 (AI module generator) is next.
+**Status:** Pre-alpha. Phases 1–6 + 7a complete. Phase 7a landed `parcel-gate` (ruff + bandit + a custom AST policy with 4 capability unlocks) and the sandbox-install pipeline — candidates land in `var/sandbox/<uuid>/`, migrate into `mod_sandbox_<uuid>`, mount at `/mod-sandbox/<uuid>/`, and admins can dismiss or promote via HTML, JSON, or `parcel sandbox` CLI. 224-test suite. Phase 7b (Claude API generator) is next.
 
 ## Vision
 
@@ -95,9 +95,21 @@ curl -b cookies.txt -H 'content-type: application/json' \
 
 `modules/contacts` is the bundled Contacts/CRM-lite demo. Install it from `/modules` (no capabilities to approve) or via `parcel install ./modules/contacts`. After a container restart the sidebar grows a **Contacts** section; each entity has list, detail, and create pages with HTMX live search. As of Phase 6 the module depends only on `parcel-sdk` at runtime.
 
-### What Phase 7 will add
+### Sandbox a candidate module (Phase 7a)
 
-The AI module generator — chat with Claude to draft a module, static-analysis gate (ruff + bandit + AST policy), sandbox install, admin preview, approve-into-production flow.
+```bash
+uv run parcel sandbox install ./modules/contacts     # gate + install to mod_sandbox_<uuid>
+uv run parcel sandbox list                           # sandboxes with gate verdict + status
+uv run parcel sandbox show <uuid>                    # full gate report
+uv run parcel sandbox promote <uuid> widgets_alt     # copy files → modules/, real install
+uv run parcel sandbox dismiss <uuid>                 # drop schema + rm files
+```
+
+The gate (`packages/parcel-gate/`) runs `ruff` + `bandit` + a custom AST policy that blocks `os`/`subprocess`/`socket`/`eval`/`exec`/`compile`/`__import__`/dynamic imports unless a matching capability (`filesystem`, `process`, `network`, `raw_sql`) is declared in the module manifest. Admin UI at `/sandbox` mirrors the CLI.
+
+### What Phase 7b+ will add
+
+Phase 7b wires the Claude API in front of the gate (chat → draft → gate → sandbox install). Phase 7c adds the chat UI and a richer preview (sample records, rendered view screenshots).
 
 ## Roadmap
 

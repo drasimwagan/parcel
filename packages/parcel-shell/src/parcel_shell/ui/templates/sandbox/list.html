@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% block title %}Sandbox — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+  <h2 style="margin: 0;">Sandbox</h2>
+  <a class="btn primary" href="/sandbox/new">+ New sandbox</a>
+</div>
+
+<p class="muted" style="max-width: 60ch;">
+  Upload a candidate module. It's run through the static-analysis gate
+  (<code>ruff</code> + <code>bandit</code> + AST policy), installed under a
+  per-sandbox schema if the gate passes, and you can try it live before
+  promoting to a real install.
+</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Version</th>
+      <th>Status</th>
+      <th>Gate</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sb in sandboxes %}
+    <tr>
+      <td><a href="/sandbox/{{ sb.id }}">{{ sb.name }}</a></td>
+      <td>{{ sb.version }}</td>
+      <td>
+        {% if sb.status == 'active' %}<span class="pill success">active</span>
+        {% elif sb.status == 'promoted' %}<span class="pill">promoted → {{ sb.promoted_to_name }}</span>
+        {% else %}<span class="pill danger">{{ sb.status }}</span>{% endif %}
+      </td>
+      <td>
+        {% if sb.gate_report.passed %}
+          <span class="pill success">✓ pass</span>
+        {% else %}
+          <span class="pill danger">✗ {{ sb.gate_report.findings | selectattr('severity', 'equalto', 'error') | list | length }} errors</span>
+        {% endif %}
+      </td>
+      <td class="muted">{{ sb.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td style="text-align:right;">
+        {% if sb.status == 'active' %}
+          <a class="btn" href="{{ sb.url_prefix }}/">Open</a>
+          <a class="btn" href="/sandbox/{{ sb.id }}">Detail →</a>
+        {% else %}
+          <a class="btn" href="/sandbox/{{ sb.id }}">Detail →</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted" style="text-align:center;">No sandboxes yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
