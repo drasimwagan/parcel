@@ -21,9 +21,7 @@ def _sections() -> list[SidebarSection]:
             label="Contacts",
             items=(
                 SidebarItem(label="Contacts", href="/mod/contacts/", permission=None),
-                SidebarItem(
-                    label="Companies", href="/mod/contacts/companies", permission=None
-                ),
+                SidebarItem(label="Companies", href="/mod/contacts/companies", permission=None),
             ),
         ),
     ]
@@ -46,16 +44,11 @@ def test_contacts_list_highlights_contacts() -> None:
 
 def test_contact_detail_highlights_contacts_not_companies() -> None:
     """A UUID path under /mod/contacts/ should highlight Contacts, not Companies."""
-    assert (
-        active_href("/mod/contacts/abc-123", _sections()) == "/mod/contacts/"
-    )
+    assert active_href("/mod/contacts/abc-123", _sections()) == "/mod/contacts/"
 
 
 def test_company_subpath_highlights_companies() -> None:
-    assert (
-        active_href("/mod/contacts/companies/xyz", _sections())
-        == "/mod/contacts/companies"
-    )
+    assert active_href("/mod/contacts/companies/xyz", _sections()) == "/mod/contacts/companies"
 
 
 def test_root_dashboard_only_matches_exact() -> None:

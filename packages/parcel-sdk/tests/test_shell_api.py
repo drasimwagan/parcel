@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
@@ -41,7 +40,7 @@ def test_calling_before_bind_raises() -> None:
 
 def test_flash_is_frozen_dataclass() -> None:
     f = Flash(kind="success", msg="ok")
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         f.msg = "x"  # type: ignore[misc]
 
 

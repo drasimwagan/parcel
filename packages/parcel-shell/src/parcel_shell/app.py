@@ -32,7 +32,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     log = structlog.get_logger("parcel_shell")
 
     from parcel_sdk import shell_api as _sdk_shell_api
-
     from parcel_shell.shell_api_impl import DefaultShellBinding
 
     _sdk_shell_api.bind(DefaultShellBinding(settings), force=True)

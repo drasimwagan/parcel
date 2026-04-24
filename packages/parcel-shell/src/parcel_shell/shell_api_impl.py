@@ -10,7 +10,6 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from parcel_sdk.shell_api import Flash, SidebarSection
-
 from parcel_shell.config import Settings
 from parcel_shell.db import get_session as _get_session
 from parcel_shell.rbac import service as _rbac_service

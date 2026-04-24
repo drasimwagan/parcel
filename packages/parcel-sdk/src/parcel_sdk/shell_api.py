@@ -66,9 +66,7 @@ def bind(impl: ShellBinding, *, force: bool = False) -> None:
     """
     global _impl
     if _impl is not None and not force:
-        raise RuntimeError(
-            "parcel_sdk.shell_api is already bound; pass force=True to rebind"
-        )
+        raise RuntimeError("parcel_sdk.shell_api is already bound; pass force=True to rebind")
     _impl = impl
 
 

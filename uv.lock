@@ -619,11 +619,15 @@ source = { editable = "packages/parcel-cli" }
 
 [[package]]
 name = "parcel-mod-contacts"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "modules/contacts" }
 dependencies = [
     { name = "fastapi" },
     { name = "parcel-sdk" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "parcel-shell" },
 ]
 
@@ -631,12 +635,14 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "parcel-sdk", editable = "packages/parcel-sdk" },
-    { name = "parcel-shell", editable = "packages/parcel-shell" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "parcel-shell", editable = "packages/parcel-shell" }]
 
 [[package]]
 name = "parcel-sdk"
-version = "0.0.0"
+version = "0.3.0"
 source = { editable = "packages/parcel-sdk" }
 dependencies = [
     { name = "alembic" },
