@@ -130,6 +130,9 @@ async def dashboard_widget(
 
     try:
         data = await widget.data(Ctx(session=db, user_id=user.id))
+        return templates.TemplateResponse(
+            request, template_name, {"widget": widget, "data": data}
+        )
     except Exception as exc:  # noqa: BLE001
         _log.warning(
             "dashboards.widget.failed",
@@ -141,7 +144,3 @@ async def dashboard_widget(
         return templates.TemplateResponse(
             request, "dashboards/_widget_error.html", {"widget": widget}
         )
-
-    return templates.TemplateResponse(
-        request, template_name, {"widget": widget, "data": data}
-    )

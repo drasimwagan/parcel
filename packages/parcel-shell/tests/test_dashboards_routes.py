@@ -5,7 +5,19 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from parcel_sdk import Dashboard, HeadlineWidget, Kpi, KpiWidget, Module
+from parcel_sdk import (
+    BarWidget,
+    Dashboard,
+    Dataset,
+    HeadlineWidget,
+    Kpi,
+    KpiWidget,
+    LineWidget,
+    Module,
+    Series,
+    Table,
+    TableWidget,
+)
 from parcel_sdk.dashboards import Ctx
 from parcel_shell.modules.discovery import DiscoveredModule
 from parcel_shell.modules.integration import mount_module
@@ -134,3 +146,51 @@ async def test_widget_error_partial_on_raise(
     )
     assert resp.status_code == 200
     assert "Couldn't load this widget" in resp.text
+
+
+async def _series_data(_ctx: Ctx) -> Series:
+    return Series(labels=["a", "b", "c"], datasets=[Dataset(label="v", values=[1.0, 2.0, 3.0])])
+
+
+async def _table_data(_ctx: Ctx) -> Table:
+    return Table(columns=["Name", "N"], rows=[["alpha", 1], ["beta", 2]])
+
+
+CHARTS_DASHBOARD = Dashboard(
+    name="demo.charts",
+    slug="charts",
+    title="Charts",
+    permission="users.read",
+    widgets=(
+        LineWidget(id="line", title="Line", data=_series_data),
+        BarWidget(id="bar", title="Bar", data=_series_data),
+        TableWidget(id="tbl", title="Tbl", data=_table_data),
+    ),
+)
+
+
+@pytest_asyncio.fixture()
+async def authed_client_with_charts(app: FastAPI, authed_client: AsyncClient):
+    _mount(app, (CHARTS_DASHBOARD,))
+    return authed_client
+
+
+async def test_widget_line_renders_chart_script(authed_client_with_charts: AsyncClient):
+    resp = await authed_client_with_charts.get("/dashboards/demo/charts/widgets/line")
+    assert resp.status_code == 200
+    assert 'type: "line"' in resp.text
+    assert "[1.0, 2.0, 3.0]" in resp.text
+
+
+async def test_widget_bar_renders_chart_script(authed_client_with_charts: AsyncClient):
+    resp = await authed_client_with_charts.get("/dashboards/demo/charts/widgets/bar")
+    assert resp.status_code == 200
+    assert 'type: "bar"' in resp.text
+
+
+async def test_widget_table_renders_rows(authed_client_with_charts: AsyncClient):
+    resp = await authed_client_with_charts.get("/dashboards/demo/charts/widgets/tbl")
+    assert resp.status_code == 200
+    assert "alpha" in resp.text
+    assert "beta" in resp.text
+    assert "<th" in resp.text

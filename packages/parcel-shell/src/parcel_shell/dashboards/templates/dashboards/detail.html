@@ -8,9 +8,7 @@
 <div class="grid grid-cols-4 gap-4">
   {% for widget in dashboard.widgets %}
     {% if widget.__class__.__name__ == "HeadlineWidget" %}
-    <div class="col-span-{{ widget.col_span }}">
-      {% include "dashboards/_widget_headline.html" %}
-    </div>
+    {% include "dashboards/_widget_headline.html" %}
     {% else %}
     <div
       class="col-span-{{ widget.col_span }} border rounded p-4 min-h-[120px]"
