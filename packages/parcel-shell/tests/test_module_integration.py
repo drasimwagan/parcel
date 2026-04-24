@@ -96,7 +96,10 @@ def test_mount_module_records_manifest() -> None:
         version="0.1.0",
         dashboards=(
             Dashboard(
-                name="demo.ov", slug="ov", title="T", permission="demo.read",
+                name="demo.ov",
+                slug="ov",
+                title="T",
+                permission="demo.read",
                 widgets=(HeadlineWidget(id="h", title="t", text="x"),),
             ),
         ),

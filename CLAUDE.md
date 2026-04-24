@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 7c — AI chat UI done.** Phase 7 ships modulo the preview-enrichment work (moved to Phase 8). `parcel_shell.ai.chat` package adds persistent chat sessions: two tables (`shell.ai_sessions` + `shell.ai_turns`, migration 0006), service layer with ownership enforcement, a background worker that runs each turn via `asyncio.create_task` with a `BaseException` safety net, and a boot-time `sweep_orphans` that marks any `generating` turns as `failed(process_restart)` after a shell restart. HTML-only admin surface at `/ai` (list) / `/ai/sessions/<id>` (detail with prompt box + HTMX-polled turn list, 1s while any turn is generating, stops when all terminal). Each admin turn is an independent generation — no accumulated Claude context across turns. Reuses `ai.generate`; no new permissions. `/admin/ai/generate` JSON one-shot from 7b stays untouched. Cross-admin access returns 404. Shell shutdown cancels outstanding AI tasks. 259-test suite.
+**Phase 8 — Dashboards done.** Modules can now declare `Dashboard(...)` tuples on their manifest; the shell auto-mounts `/dashboards/<module>/<slug>`, lazy-loads each widget via HTMX, and renders five widget types: `KpiWidget`, `LineWidget`, `BarWidget`, `TableWidget`, `HeadlineWidget`. Charts use Chart.js 4.4.1 via CDN alongside existing HTMX/Alpine. Per-dashboard permission gating (`Dashboard.permission` is a permission the module already owns); no new shell permissions, no new migrations. Each widget fetch is isolated — one failing `data` fn renders `_widget_error.html` without breaking siblings; the try/except also covers template render so malformed shapes don't 500. SDK gains `scalar_query`/`series_query`/`table_query` helpers (params-only; series values coerced to `float` for Chart.js); SDK bumped to `0.4.0`. Sidebar auto-injects a "Dashboards" entry only when the user has ≥ 1 visible dashboard. Contacts ships a reference `contacts.overview` dashboard with total/new-this-week KPIs, a 30-day series chart, and a recently-added table. 296-test suite, pyright clean.
 
-Next: **Phase 8 — Dashboards** (module-authored KPI cards + charts + tables). Start a new session; prompt: "Begin Phase 8 per `CLAUDE.md` roadmap." Do not begin Phase 8 inside the Phase 7c commit cluster. The full upcoming roadmap (8 Dashboards → 9 Reports/PDF → 10 Workflows → 11 Sandbox preview enrichment) is described below under "Upcoming phases".
+Next: **Phase 9 — Reports + PDF generation** (templated, parameterised, printable/exportable reports per module; WeasyPrint-leaning). Start a new session; prompt: "Begin Phase 9 per `CLAUDE.md` roadmap." Do not begin Phase 9 inside the Phase 8 commit cluster. The full upcoming roadmap (8 Dashboards ✅ → 9 Reports/PDF → 10 Workflows → 11 Sandbox preview enrichment) is described below under "Upcoming phases".
 
 ## Locked-in decisions
 
@@ -98,6 +98,12 @@ Next: **Phase 8 — Dashboards** (module-authored KPI cards + charts + tables). 
 | AI chat orphan sweep | On every shell boot (after `mount_sandbox_on_boot`), `sweep_orphans` flips any `status='generating'` turn to `failed(process_restart)`. Admin can re-submit the prompt. |
 | AI chat URLs | HTML-only, under `/ai` (not `/admin/ai/` — parallel to `/sandbox`, `/modules`). Routes: `GET /ai`, `POST /ai/sessions`, `GET /ai/sessions/<id>`, `POST /ai/sessions/<id>/turns`, `GET /ai/sessions/<id>/status` (HTMX polling fragment). All require `ai.generate`; cross-owner access returns 404, not 403. |
 | AI chat polling | `GET /ai/sessions/<id>/status` returns a full turn-list partial. When **any** turn is `generating`, the partial's root `<div id="turns">` carries `hx-get`/`hx-trigger="every 1s"`/`hx-target="#turns"`/`hx-swap="outerHTML"`. When all turns are terminal, those attributes are omitted — client stops polling automatically. |
+| Dashboard declaration | `Module.dashboards: tuple[Dashboard, ...] = ()`. Five widget types: `KpiWidget`, `LineWidget`, `BarWidget`, `TableWidget`, `HeadlineWidget`. Data-bearing widgets are frozen dataclasses with `kw_only=True` so `data` stays required despite `Widget.col_span` having a default. Shell auto-mounts `/dashboards/<module>/<slug>` via `app.state.active_modules_manifest` (populated by `mount_module`). Modules write no dashboard routes. |
+| Dashboard chart library | Chart.js 4.4.1 via CDN in `_base.html` alongside HTMX/Alpine. KPI/line/bar/table/error partials are each one Jinja template under `parcel_shell/dashboards/templates/dashboards/`. Charts use `tojson` filter for safe data injection. |
+| Dashboard permission model | Per-dashboard only. `Dashboard.permission` is a permission the module already owns (e.g., `contacts.read`). No shell-level `dashboards.*` permissions. Unauthorized access returns 404 (consistent with AI chat's cross-owner 404 policy). |
+| Dashboard widget isolation | Each widget loads via its own HTMX `hx-get` + `hx-trigger="load"`. Per-widget endpoint wraps both `widget.data(Ctx(...))` AND the `TemplateResponse` render in one try/except; any exception logs + returns `_widget_error.html`, leaving siblings intact. `HeadlineWidget` has no data fn and is rendered inline in `detail.html`. |
+| Dashboard SDK helpers | `scalar_query`, `series_query`, `table_query` wrap `sqlalchemy.text()` params-only. Modules avoid the `raw_sql` capability by going through these helpers (they live inside the SDK, trusted code). `series_query` coerces values to `float` (Postgres `numeric` → `Decimal` otherwise, which Chart.js can't handle). `table_query` reads columns from the cursor before consuming rows so empty tables still carry headers. |
+| Dashboard sidebar link | Auto-added by `_dashboards_section` in `ui/sidebar.py` — inserts a "Dashboards" section after "Overview" only when the user has permission for ≥ 1 declared dashboard across all mounted modules. No empty page for users without permissions. |
 
 ## Repository layout
 
@@ -151,8 +157,8 @@ contacts = "parcel_mod_contacts:module"
 | 7a | ✅ done | Static-analysis gate + sandbox install (no AI yet) |
 | 7b | ✅ done | Claude API generator — API + CLI provider, one-turn auto-repair |
 | 7c | ✅ done | Chat UI for the generator — persistent sessions, HTMX polling |
-| 8 | ⏭ next | Dashboards — module-authored KPI cards, charts, live-query tables |
-| 9 |  | Reports + PDF generation — templated, parameterised, printable/exportable |
+| 8 | ✅ done | Dashboards — module-authored KPI cards, charts, live-query tables |
+| 9 | ⏭ next | Reports + PDF generation — templated, parameterised, printable/exportable |
 | 10 |  | Workflows — state machines, triggers, actions (introduces ARQ as first-class infra) |
 | 11 |  | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, builds on ARQ |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |

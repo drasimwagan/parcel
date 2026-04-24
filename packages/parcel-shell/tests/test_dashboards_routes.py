@@ -124,26 +124,20 @@ async def test_detail_404_when_user_lacks_permission(
 
 
 async def test_widget_kpi_renders_value(authed_client_with_demo_dashboard: AsyncClient):
-    resp = await authed_client_with_demo_dashboard.get(
-        "/dashboards/demo/overview/widgets/greet"
-    )
+    resp = await authed_client_with_demo_dashboard.get("/dashboards/demo/overview/widgets/greet")
     assert resp.status_code == 200
     assert "hello" in resp.text
 
 
 async def test_widget_404_on_missing_widget(authed_client_with_demo_dashboard: AsyncClient):
-    resp = await authed_client_with_demo_dashboard.get(
-        "/dashboards/demo/overview/widgets/nope"
-    )
+    resp = await authed_client_with_demo_dashboard.get("/dashboards/demo/overview/widgets/nope")
     assert resp.status_code == 404
 
 
 async def test_widget_error_partial_on_raise(
     authed_client_with_failing_widget: AsyncClient,
 ):
-    resp = await authed_client_with_failing_widget.get(
-        "/dashboards/demo/overview/widgets/bad"
-    )
+    resp = await authed_client_with_failing_widget.get("/dashboards/demo/overview/widgets/bad")
     assert resp.status_code == 200
     assert "Couldn't load this widget" in resp.text
 

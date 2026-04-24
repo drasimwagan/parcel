@@ -32,7 +32,10 @@ async def _seed(session: AsyncSession, n_now: int = 3, n_old: int = 2) -> None:
                 "VALUES (:id, :f, :l, :e, :c, :c)"
             ),
             {
-                "id": uuid4(), "f": f"O{i}", "l": f"O{i}", "e": f"o{i}@e.com",
+                "id": uuid4(),
+                "f": f"O{i}",
+                "l": f"O{i}",
+                "e": f"o{i}@e.com",
                 "c": now - timedelta(days=40),
             },
         )

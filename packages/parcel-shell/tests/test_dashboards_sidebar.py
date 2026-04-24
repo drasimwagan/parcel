@@ -7,11 +7,15 @@ from parcel_shell.ui.sidebar import sidebar_for
 
 
 def _req_with_dashboards(modules):
-    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(
-        active_modules_manifest={m.name: m for m in modules},
-        active_modules={m.name for m in modules},
-        active_modules_sidebar={m.name: () for m in modules},
-    )))
+    return SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                active_modules_manifest={m.name: m for m in modules},
+                active_modules={m.name for m in modules},
+                active_modules_sidebar={m.name: () for m in modules},
+            )
+        )
+    )
 
 
 def test_no_dashboards_link_when_none_visible() -> None:
@@ -23,7 +27,10 @@ def test_no_dashboards_link_when_none_visible() -> None:
 
 def test_dashboards_link_appears_when_user_has_permission() -> None:
     d = Dashboard(
-        name="a.o", slug="o", title="T", permission="a.read",
+        name="a.o",
+        slug="o",
+        title="T",
+        permission="a.read",
         widgets=(HeadlineWidget(id="h", title="", text="x"),),
     )
     m = Module(name="a", version="0.1.0", dashboards=(d,))
@@ -35,7 +42,10 @@ def test_dashboards_link_appears_when_user_has_permission() -> None:
 
 def test_dashboards_link_hidden_when_no_matching_permission() -> None:
     d = Dashboard(
-        name="a.o", slug="o", title="T", permission="a.read",
+        name="a.o",
+        slug="o",
+        title="T",
+        permission="a.read",
         widgets=(HeadlineWidget(id="h", title="", text="x"),),
     )
     m = Module(name="a", version="0.1.0", dashboards=(d,))

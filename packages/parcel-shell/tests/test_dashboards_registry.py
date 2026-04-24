@@ -25,11 +25,17 @@ def _app_with_modules(*modules: Module):
 
 def test_collect_dashboards_from_active_modules() -> None:
     d1 = Dashboard(
-        name="a.overview", slug="overview", title="A", permission="a.read",
+        name="a.overview",
+        slug="overview",
+        title="A",
+        permission="a.read",
         widgets=(HeadlineWidget(id="h", title="t", text="x"),),
     )
     d2 = Dashboard(
-        name="b.stats", slug="stats", title="B", permission="b.read",
+        name="b.stats",
+        slug="stats",
+        title="B",
+        permission="b.read",
         widgets=(HeadlineWidget(id="h", title="t", text="x"),),
     )
     app = _app_with_modules(_mkmod("a", (d1,)), _mkmod("b", (d2,)), _mkmod("c"))
@@ -42,7 +48,10 @@ def test_collect_dashboards_from_active_modules() -> None:
 
 def test_find_dashboard_by_module_and_slug() -> None:
     d = Dashboard(
-        name="a.overview", slug="overview", title="A", permission="a.read",
+        name="a.overview",
+        slug="overview",
+        title="A",
+        permission="a.read",
         widgets=(HeadlineWidget(id="h", title="t", text="x"),),
     )
     app = _app_with_modules(_mkmod("a", (d,)))

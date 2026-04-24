@@ -11,9 +11,8 @@ from testcontainers.postgres import PostgresContainer
 async def pg_url() -> AsyncIterator[str]:
     with PostgresContainer("postgres:16-alpine") as pg:
         raw = pg.get_connection_url()
-        url = (
-            raw.replace("psycopg2", "asyncpg")
-            .replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+        url = raw.replace("psycopg2", "asyncpg").replace(
+            "postgresql+psycopg2://", "postgresql+asyncpg://"
         )
         yield url
 
