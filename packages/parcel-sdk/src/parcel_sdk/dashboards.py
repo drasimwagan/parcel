@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from sqlalchemy import text
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,6 +92,41 @@ class Dashboard:
     description: str = ""
 
 
+async def scalar_query(session: AsyncSession, sql: str, **params: Any) -> Any:
+    """Return the first column of the first row, or None if empty.
+
+    Params are bound via SQLAlchemy parameterisation — never string-interpolate.
+    """
+    result = await session.execute(text(sql), params)
+    row = result.first()
+    if row is None:
+        return None
+    return row[0]
+
+
+async def series_query(
+    session: AsyncSession,
+    sql: str,
+    label_col: str,
+    value_col: str,
+    **params: Any,
+) -> Series:
+    """Shape a query result into a single-dataset ``Series``."""
+    result = await session.execute(text(sql), params)
+    rows = result.mappings().all()
+    labels = [str(r[label_col]) for r in rows]
+    values = [r[value_col] for r in rows]
+    return Series(labels=labels, datasets=[Dataset(label=value_col, values=values)])
+
+
+async def table_query(session: AsyncSession, sql: str, **params: Any) -> Table:
+    """Shape a query result into a ``Table`` using column order."""
+    result = await session.execute(text(sql), params)
+    rows = result.all()
+    columns = list(result.keys()) if rows else []
+    return Table(columns=columns, rows=[list(r) for r in rows])
+
+
 __all__ = [
     "BarWidget",
     "Ctx",
@@ -103,4 +140,7 @@ __all__ = [
     "Table",
     "TableWidget",
     "Widget",
+    "scalar_query",
+    "series_query",
+    "table_query",
 ]

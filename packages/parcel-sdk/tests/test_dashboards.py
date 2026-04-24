@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 
 import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from parcel_sdk.dashboards import (
     BarWidget,
@@ -15,6 +17,9 @@ from parcel_sdk.dashboards import (
     Series,
     Table,
     TableWidget,
+    scalar_query,
+    series_query,
+    table_query,
 )
 
 
@@ -74,3 +79,41 @@ def test_all_chart_widgets_construct():
     assert LineWidget(id="l", title="Line", data=_fn).id == "l"
     assert BarWidget(id="b", title="Bar", data=_fn).id == "b"
     assert TableWidget(id="t", title="Table", data=_fn).id == "t"
+
+
+async def test_scalar_query_executes_with_params(pg_session: AsyncSession):
+    await pg_session.execute(text("CREATE SCHEMA IF NOT EXISTS t_dash"))
+    await pg_session.execute(text("CREATE TABLE t_dash.x (id int primary key, v int)"))
+    await pg_session.execute(text("INSERT INTO t_dash.x VALUES (1, 10), (2, 20)"))
+    await pg_session.commit()
+    n = await scalar_query(pg_session, "SELECT COUNT(*) FROM t_dash.x WHERE v > :min", min=5)
+    assert n == 2
+
+
+async def test_series_query_shapes_result(pg_session: AsyncSession):
+    await pg_session.execute(text("CREATE SCHEMA IF NOT EXISTS t_dash2"))
+    await pg_session.execute(text("CREATE TABLE t_dash2.x (label text, v int)"))
+    await pg_session.execute(
+        text("INSERT INTO t_dash2.x VALUES ('a', 1), ('b', 2), ('c', 3)")
+    )
+    await pg_session.commit()
+    s = await series_query(
+        pg_session,
+        "SELECT label, v FROM t_dash2.x ORDER BY label",
+        label_col="label",
+        value_col="v",
+    )
+    assert s.labels == ["a", "b", "c"]
+    assert s.datasets[0].values == [1, 2, 3]
+
+
+async def test_table_query_shapes_rows(pg_session: AsyncSession):
+    await pg_session.execute(text("CREATE SCHEMA IF NOT EXISTS t_dash3"))
+    await pg_session.execute(text("CREATE TABLE t_dash3.x (a text, b int)"))
+    await pg_session.execute(text("INSERT INTO t_dash3.x VALUES ('x', 1), ('y', 2)"))
+    await pg_session.commit()
+    t = await table_query(
+        pg_session, "SELECT a, b FROM t_dash3.x ORDER BY a",
+    )
+    assert t.columns == ["a", "b"]
+    assert t.rows == [["x", 1], ["y", 2]]
