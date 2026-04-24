@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from parcel_cli.commands import dev, install, migrate, new_module, sandbox, serve
+from parcel_cli.commands import ai, dev, install, migrate, new_module, sandbox, serve
 
 app = typer.Typer(
     name="parcel",
@@ -18,6 +18,7 @@ app.command(name="migrate")(migrate.migrate)
 app.command(name="dev")(dev.dev)
 app.command(name="serve")(serve.serve)
 app.add_typer(sandbox.app, name="sandbox")
+app.add_typer(ai.app, name="ai")
 
 
 if __name__ == "__main__":  # pragma: no cover
