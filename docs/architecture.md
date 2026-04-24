@@ -150,3 +150,25 @@ zip(files) ──> create_sandbox(...)  [Phase 7a]
 Observability: every generation logs a structured event with `prompt_hash` (first 16 hex of SHA-256), provider, attempt count, duration, and result/failure-kind. No raw prompt text is logged.
 
 New permission `ai.generate` (migration 0005) on the admin role.
+
+## AI chat surface (Phase 7c)
+
+`/ai` is the browser-visible wrapper around the 7b generator. Sessions persist in two new tables (`shell.ai_sessions`, `shell.ai_turns`, migration 0006). Each admin turn is an independent generation — no accumulated Claude context. The chat-like UX comes from rendering the conversation thread, not from multi-turn model context.
+
+```
+POST /ai/sessions/<sid>/turns (form: prompt)
+  ├─ add_turn(db, sid, prompt) → AITurn(status='generating')
+  ├─ asyncio.create_task(run_turn(turn_id, prompt, provider, sessionmaker, app, settings))
+  │     ↓
+  │   (opens its own session, runs generate_module, writes terminal state)
+  └─ 303 → /ai/sessions/<sid>
+
+GET /ai/sessions/<sid>           — full page, includes _turns partial
+GET /ai/sessions/<sid>/status    — _turns partial only, HTMX-polled every 1s while generating
+```
+
+The polling fragment carries `hx-get` / `hx-trigger="every 1s"` / `hx-target="#turns"` only when at least one turn is still `generating`; when all terminal, those attributes are omitted and the client stops polling automatically.
+
+Background tasks are tracked in `app.state.ai_tasks`. On shell shutdown, outstanding tasks are cancelled and gathered with `return_exceptions=True`. The worker's top-level `except BaseException` handles `CancelledError` cleanly so a task interrupted mid-generation still writes a terminal `failed` row. A boot-time `sweep_orphans` flips any remaining `generating` turns to `failed(process_restart)` — covers crashes, hard kills, and unclean shutdowns.
+
+Cross-owner access returns 404 (not 403) so session existence doesn't leak to other admins. No new permissions — `ai.generate` covers the chat flow as it did the 7b one-shot.

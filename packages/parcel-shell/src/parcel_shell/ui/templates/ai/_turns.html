@@ -1,0 +1,65 @@
+{#
+  Renders the full turn list. When ``polling`` is true, HTMX polls
+  ``/ai/sessions/<id>/status`` every second and swaps this container in.
+  When no turn is still ``generating``, polling attributes are omitted so
+  the client stops hitting the endpoint.
+#}
+<div id="turns"
+     {% if polling %}
+     hx-get="/ai/sessions/{{ session.id }}/status"
+     hx-trigger="every 1s"
+     hx-target="#turns"
+     hx-swap="outerHTML"
+     {% endif %}>
+  {% for t in turns %}
+  <div style="border: 1px solid
+    {% if t.status == 'generating' %}#e0a800{% elif t.status == 'succeeded' %}#3cb371{% else %}#c00{% endif %};
+    border-radius:6px; padding:12px; margin-bottom:12px;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+      <strong>Turn {{ t.idx }}</strong>
+      <span class="muted">{{ t.started_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    </div>
+    <p style="white-space: pre-wrap; margin: 8px 0;">{{ t.prompt }}</p>
+    {% if t.status == 'generating' %}
+      <p><span class="pill">⟳ generating…</span></p>
+    {% elif t.status == 'succeeded' %}
+      <p>
+        <span class="pill success">✓ sandbox created</span>
+        {% if t.sandbox_id %}
+        <a class="btn" href="/sandbox/{{ t.sandbox_id }}">Open sandbox →</a>
+        {% endif %}
+      </p>
+    {% else %}
+      <p>
+        <span class="pill danger">✗ {{ t.failure_kind }}</span>
+        <span class="muted">{{ t.failure_message }}</span>
+      </p>
+      {% if t.gate_report %}
+      <details>
+        <summary class="muted">Gate report (
+          {{ t.gate_report.findings | selectattr('severity', 'equalto', 'error') | list | length }} errors,
+          {{ t.gate_report.findings | selectattr('severity', 'equalto', 'warning') | list | length }} warnings)
+        </summary>
+        <table class="table" style="margin-top: 8px;">
+          <thead>
+            <tr><th>Check</th><th>Severity</th><th>Path</th><th>Rule</th></tr>
+          </thead>
+          <tbody>
+          {% for f in t.gate_report.findings %}
+            <tr style="background: {% if f.severity == 'error' %}#fff0f0{% else %}#fffaf0{% endif %};">
+              <td><code>{{ f.check }}</code></td>
+              <td>{{ f.severity }}</td>
+              <td><code>{{ f.path }}</code>{% if f.line %}:{{ f.line }}{% endif %}</td>
+              <td><code>{{ f.rule }}</code><br><small class="muted">{{ f.message }}</small></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </details>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="muted" style="text-align:center;">No turns yet. Write a prompt below.</p>
+  {% endfor %}
+</div>

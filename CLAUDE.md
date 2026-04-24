@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 7b — Claude API generator done.** Phase 7 is decomposed: 7a (gate + sandbox) ✅, **7b (Claude generator) ✅**, 7c (chat UI + richer preview) next. `parcel_shell.ai` package ships a `ClaudeProvider` Protocol with two implementations: `AnthropicAPIProvider` (default, uses the `anthropic` SDK + our own `write_file`/`submit_module` tool-use loop with path/size safety and a 20-iteration hard cap) and `ClaudeCodeCLIProvider` (subprocess the `claude` CLI with `--output-format json` in a throwaway working dir). `generate_module` orchestrator calls the provider, zips the files, hands them to Phase 7a's `create_sandbox`, and retries once with the gate report attached on rejection. Failure kinds (`provider_error` / `no_files` / `gate_rejected` / `exceeded_retries`) map onto 502/400/422/422. System prompt is a versioned `.md` file. Admin surfaces: `POST /admin/ai/generate` + `parcel ai generate "<prompt>"` CLI. New `ai.generate` permission (migration 0005) attached to the built-in admin role. Provider chosen at boot via `PARCEL_AI_PROVIDER=api|cli`; `ANTHROPIC_API_KEY` env var required for the default. Missing key → shell still boots, generator endpoint returns 503. 242-test suite.
+**Phase 7c — AI chat UI done.** Phase 7 ships modulo the preview-enrichment work (moved to Phase 8). `parcel_shell.ai.chat` package adds persistent chat sessions: two tables (`shell.ai_sessions` + `shell.ai_turns`, migration 0006), service layer with ownership enforcement, a background worker that runs each turn via `asyncio.create_task` with a `BaseException` safety net, and a boot-time `sweep_orphans` that marks any `generating` turns as `failed(process_restart)` after a shell restart. HTML-only admin surface at `/ai` (list) / `/ai/sessions/<id>` (detail with prompt box + HTMX-polled turn list, 1s while any turn is generating, stops when all terminal). Each admin turn is an independent generation — no accumulated Claude context across turns. Reuses `ai.generate`; no new permissions. `/admin/ai/generate` JSON one-shot from 7b stays untouched. Cross-admin access returns 404. Shell shutdown cancels outstanding AI tasks. 259-test suite.
 
-Next: **Phase 7c — Chat UI + richer sandbox preview.** Start a new session; prompt: "Begin Phase 7c per `CLAUDE.md` roadmap." Do not begin Phase 7c inside the Phase 7b commit cluster.
+Next: **Phase 8 — Sandbox preview enrichment** (sample-record seeding, Playwright screenshots, ARQ worker). Start a new session; prompt: "Begin Phase 8 per `CLAUDE.md` roadmap." Do not begin Phase 8 inside the Phase 7c commit cluster.
 
 ## Locked-in decisions
 
@@ -92,6 +92,12 @@ Next: **Phase 7c — Chat UI + richer sandbox preview.** Start a new session; pr
 | AI permission | `ai.generate` added via migration 0005 and attached to the built-in admin role. Required by `POST /admin/ai/generate` and `parcel ai generate`. |
 | Generator endpoints | HTTP: `POST /admin/ai/generate {"prompt": "…"}` → 201 with `SandboxOut`, or 503 if no provider, or 4xx/5xx with `GenerateFailure` detail. CLI: `parcel ai generate "<prompt>"` — exit 0 on sandbox, exit 1 on failure. Both block synchronously (30-90s typical); no ARQ queue yet. |
 | AI settings | `PARCEL_AI_PROVIDER` (default `api`), `ANTHROPIC_API_KEY` (required if provider is api; shell still boots without it, endpoint returns 503), `PARCEL_ANTHROPIC_MODEL` (default `claude-opus-4-7`). |
+| AI chat persistence | Two tables (migration 0006): `shell.ai_sessions` (id, owner_id, title, timestamps) and `shell.ai_turns` (id, session_id, idx, prompt, status, sandbox_id, failure_kind/message/gate_report, timestamps). Title is the first ~40 chars of the first prompt. Sessions and turns cascade-delete; owner `ON DELETE CASCADE`. |
+| AI chat turn semantics | Each admin turn is an **independent generation** — no accumulated Claude context across turns. The UX is chat-like; the model sees one prompt (plus 7b's one-turn auto-repair). Multi-turn context accumulation is a future-phase decision. |
+| AI chat background task | `asyncio.create_task(run_turn(...))` fires from the POST handler. The task opens its own sessionmaker-backed `AsyncSession`; the request's session is closed by the time the redirect returns. Top-level `except BaseException` catches `CancelledError` during shutdown so turns never stay stuck in `generating`. Tasks tracked in `app.state.ai_tasks`; cancelled + gathered on lifespan exit. |
+| AI chat orphan sweep | On every shell boot (after `mount_sandbox_on_boot`), `sweep_orphans` flips any `status='generating'` turn to `failed(process_restart)`. Admin can re-submit the prompt. |
+| AI chat URLs | HTML-only, under `/ai` (not `/admin/ai/` — parallel to `/sandbox`, `/modules`). Routes: `GET /ai`, `POST /ai/sessions`, `GET /ai/sessions/<id>`, `POST /ai/sessions/<id>/turns`, `GET /ai/sessions/<id>/status` (HTMX polling fragment). All require `ai.generate`; cross-owner access returns 404, not 403. |
+| AI chat polling | `GET /ai/sessions/<id>/status` returns a full turn-list partial. When **any** turn is `generating`, the partial's root `<div id="turns">` carries `hx-get`/`hx-trigger="every 1s"`/`hx-target="#turns"`/`hx-swap="outerHTML"`. When all turns are terminal, those attributes are omitted — client stops polling automatically. |
 
 ## Repository layout
 
@@ -144,7 +150,8 @@ contacts = "parcel_mod_contacts:module"
 | 6 | ✅ done | SDK polish + `parcel` CLI |
 | 7a | ✅ done | Static-analysis gate + sandbox install (no AI yet) |
 | 7b | ✅ done | Claude API generator — API + CLI provider, one-turn auto-repair |
-| 7c | ⏭ next | Chat UI + richer sandbox preview (sample records, screenshots of views) |
+| 7c | ✅ done | Chat UI for the generator — persistent sessions, HTMX polling |
+| 8 | ⏭ next | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, ARQ worker |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.
