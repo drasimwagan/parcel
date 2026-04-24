@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from parcel_sdk import SidebarItem
+from parcel_sdk.shell_api import SidebarSection as SdkSidebarSection
 
 __all__ = [
     "SIDEBAR",
@@ -11,6 +12,7 @@ __all__ = [
     "active_href",
     "composed_sections",
     "sidebar_for",
+    "to_sdk",
     "visible_sections",
 ]
 
@@ -63,6 +65,10 @@ def composed_sections(
         if visible:
             out.append(SidebarSection(label=name.capitalize(), items=visible))
     return out
+
+
+def to_sdk(section: SidebarSection) -> SdkSidebarSection:
+    return SdkSidebarSection(label=section.label, items=section.items)
 
 
 def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:

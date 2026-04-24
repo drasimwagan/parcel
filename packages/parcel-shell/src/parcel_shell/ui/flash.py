@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
-
 from itsdangerous import BadSignature, URLSafeSerializer
+
+from parcel_sdk.shell_api import Flash, FlashKind
+
+__all__ = ["COOKIE_NAME", "Flash", "FlashKind", "pack", "unpack"]
 
 COOKIE_NAME = "parcel_flash"
 _SALT = "parcel.flash.v1"
-
-FlashKind = Literal["success", "error", "info"]
-
-
-@dataclass(frozen=True)
-class Flash:
-    kind: FlashKind
-    msg: str
 
 
 def _serializer(secret: str) -> URLSafeSerializer:
