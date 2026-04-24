@@ -27,9 +27,7 @@ def new_module(
     root = Path(path) / name
     if root.exists():
         if not force:
-            typer.echo(
-                f"error: {root} already exists (use --force to overwrite)", err=True
-            )
+            typer.echo(f"error: {root} already exists (use --force to overwrite)", err=True)
             raise typer.Exit(2)
         shutil.rmtree(root)
 

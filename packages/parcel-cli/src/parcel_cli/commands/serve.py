@@ -5,7 +5,7 @@ import uvicorn
 
 
 def serve(
-    host: str = typer.Option("0.0.0.0", "--host"),
+    host: str = typer.Option("0.0.0.0", "--host"),  # noqa: S104
     port: int = typer.Option(8000, "--port"),
     workers: int = typer.Option(1, "--workers"),
 ) -> None:
