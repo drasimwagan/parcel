@@ -82,6 +82,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_router)
     app.include_router(modules_router)
 
+    from parcel_shell.sandbox.router_admin import router as sandbox_admin_router
+
+    app.include_router(sandbox_admin_router)
+
     # HTML UI (Phase 4). Lazy imports keep this resilient if a router fails to load.
     from parcel_shell.ui.routes.auth import router as ui_auth_router
     from parcel_shell.ui.routes.dashboard import router as ui_dashboard_router
