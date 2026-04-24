@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phase 5 complete — modules can now contribute a UI (router + templates + sidebar). The bundled Contacts/CRM-lite demo module ships with Contact + Company entities, roomy two-line list pages with live HTMX search, form-first detail pages, and two permissions. Install it from `/modules`.
+**Status:** Pre-alpha. Phases 1–6 complete. The SDK now exposes a stable `parcel_sdk.shell_api` facade so modules depend only on `parcel-sdk`; a `parcel` CLI ships `new-module`, `install`, `migrate`, `dev`, and `serve`. The bundled Contacts/CRM-lite demo module shows the pattern end-to-end (Contact + Company entities, live HTMX search, two permissions). 196-test suite. Phase 7 (AI module generator) is next.
 
 ## Vision
 
@@ -11,8 +11,9 @@ Parcel is what Odoo would look like if it were designed in 2026 around large-lan
 ## Architecture (one-liner)
 
 - **Shell** (FastAPI + Postgres + Redis + HTMX) provides auth, RBAC, admin UI, and the module lifecycle.
-- **SDK** is the stable Python API every module imports.
+- **SDK** is the stable Python API every module imports — including `parcel_sdk.shell_api`, the facade the shell registers at startup so modules never need to import `parcel_shell.*`.
 - **Modules** are pip-installable packages discovered via entry points. Each owns its own Postgres schema and Alembic migrations.
+- **CLI** (`parcel`) scaffolds modules, installs them, runs migrations, and launches the dev/prod server.
 
 ## Running locally
 
@@ -69,15 +70,22 @@ uv run ruff check
 uv run pyright packages/parcel-shell
 ```
 
-### Inspect module state
+### Build a module with the CLI (Phase 6)
+
+```bash
+uv run parcel new-module widgets           # scaffolds modules/widgets/
+uv sync --all-packages
+uv run parcel install ./modules/widgets    # pip install -e + register + migrate
+uv run parcel dev                          # uvicorn with --reload
+# visit http://localhost:8000/mod/widgets/
+```
+
+Full authoring surface is documented in [`docs/module-authoring.md`](./docs/module-authoring.md).
+
+### Inspect module state via JSON API
 
 ```bash
 curl -b cookies.txt http://localhost:8000/admin/modules
-```
-
-Out of the box this returns `[]` — there are no modules yet. Once Phase 5 ships a real Contacts module, it will appear here and can be installed with:
-
-```bash
 curl -b cookies.txt -H 'content-type: application/json' \
   -d '{"name":"contacts","approve_capabilities":[]}' \
   http://localhost:8000/admin/modules/install
@@ -85,11 +93,11 @@ curl -b cookies.txt -H 'content-type: application/json' \
 
 ### Demo module: contacts
 
-`modules/contacts` is the bundled Contacts/CRM-lite demo. Install it from `/modules` (no capabilities to approve). After a container restart the sidebar grows a **Contacts** section; each entity has list, detail, and create pages with HTMX live search.
+`modules/contacts` is the bundled Contacts/CRM-lite demo. Install it from `/modules` (no capabilities to approve) or via `parcel install ./modules/contacts`. After a container restart the sidebar grows a **Contacts** section; each entity has list, detail, and create pages with HTMX live search. As of Phase 6 the module depends only on `parcel-sdk` at runtime.
 
-### What Phase 6+ will add
+### What Phase 7 will add
 
-A `parcel` CLI (Phase 6) — one entry point for `new-module`, `install`, `migrate`, `dev`, `serve`. The AI module generator lands in Phase 7.
+The AI module generator — chat with Claude to draft a module, static-analysis gate (ruff + bandit + AST policy), sandbox install, admin preview, approve-into-production flow.
 
 ## Roadmap
 
