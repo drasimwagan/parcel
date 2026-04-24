@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import MetaData
 
-from parcel_sdk import Module, Permission
+from parcel_sdk import Dashboard, KpiWidget, Module, Permission
 
 
 def test_permission_is_frozen_dataclass() -> None:
@@ -49,3 +49,23 @@ def test_module_equality_by_value() -> None:
     a = Module(name="foo", version="0.1.0", capabilities=("x",))
     b = Module(name="foo", version="0.1.0", capabilities=("x",))
     assert a == b
+
+
+async def _fn(_ctx): ...
+
+
+def test_module_accepts_dashboards_tuple():
+    d = Dashboard(
+        name="m.overview",
+        slug="overview",
+        title="t",
+        permission="m.read",
+        widgets=(KpiWidget(id="k", title="t", data=_fn),),
+    )
+    m = Module(name="m", version="0.1.0", dashboards=(d,))
+    assert m.dashboards == (d,)
+
+
+def test_module_dashboards_defaults_empty():
+    m = Module(name="m", version="0.1.0")
+    assert m.dashboards == ()

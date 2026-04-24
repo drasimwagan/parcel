@@ -14,6 +14,8 @@ def _ensure_state(app: FastAPI) -> None:
         app.state.active_modules = set()
     if not hasattr(app.state, "active_modules_sidebar"):
         app.state.active_modules_sidebar = {}
+    if not hasattr(app.state, "active_modules_manifest"):
+        app.state.active_modules_manifest = {}
 
 
 def mount_module(app: FastAPI, discovered: DiscoveredModule) -> None:
@@ -33,6 +35,7 @@ def mount_module(app: FastAPI, discovered: DiscoveredModule) -> None:
 
     app.state.active_modules.add(name)
     app.state.active_modules_sidebar[name] = tuple(discovered.module.sidebar_items)
+    app.state.active_modules_manifest[name] = discovered.module
     _log.info("module.mounted", name=name)
 
 

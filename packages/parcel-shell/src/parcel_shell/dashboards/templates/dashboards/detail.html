@@ -1,0 +1,24 @@
+{% extends "_base.html" %}
+{% block title %}{{ dashboard.title }} · Parcel{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">{{ dashboard.title }}</h1>
+{% if dashboard.description %}
+<p class="text-gray-500 mb-4">{{ dashboard.description }}</p>
+{% endif %}
+<div class="grid grid-cols-4 gap-4">
+  {% for widget in dashboard.widgets %}
+    {% if widget.__class__.__name__ == "HeadlineWidget" %}
+    {% include "dashboards/_widget_headline.html" %}
+    {% else %}
+    <div
+      class="col-span-{{ widget.col_span }} border rounded p-4 min-h-[120px]"
+      hx-get="/dashboards/{{ module_name }}/{{ dashboard.slug }}/widgets/{{ widget.id }}"
+      hx-trigger="load"
+      hx-swap="outerHTML"
+    >
+      <div class="text-sm text-gray-400">Loading {{ widget.title }}…</div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

@@ -78,10 +78,32 @@ def to_sdk(section: SidebarSection) -> SdkSidebarSection:
     return SdkSidebarSection(label=section.label, items=section.items)
 
 
+def _dashboards_section(request, perms: set[str]) -> SidebarSection | None:
+    """Return a sidebar section for dashboards if the user can see >= 1.
+
+    Reads ``app.state.active_modules_manifest`` and checks each dashboard's
+    permission against the user's effective permissions.
+    """
+    manifest = getattr(request.app.state, "active_modules_manifest", {}) or {}
+    for module in manifest.values():
+        for dash in getattr(module, "dashboards", ()):
+            if dash.permission in perms:
+                return SidebarSection(
+                    label="Dashboards",
+                    items=(SidebarItem(label="Dashboards", href="/dashboards", permission=None),),
+                )
+    return None
+
+
 def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:
     """Convenience: compose the sidebar using the live app state."""
     module_sections = getattr(request.app.state, "active_modules_sidebar", None)
-    return composed_sections(perms, module_sections)
+    out = composed_sections(perms, module_sections)
+    dash = _dashboards_section(request, perms)
+    if dash is not None:
+        insert_at = 1 if out and out[0].label == "Overview" else 0
+        out.insert(insert_at, dash)
+    return out
 
 
 def active_href(path: str, sections: list[SidebarSection]) -> str | None:

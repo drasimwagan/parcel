@@ -86,3 +86,28 @@ def test_mount_module_no_router_is_noop(tmp_path: Path) -> None:
     mount_module(app, discovered)
     assert "nohttp" in app.state.active_modules
     assert app.state.active_modules_sidebar.get("nohttp", ()) == ()
+
+
+def test_mount_module_records_manifest() -> None:
+    from parcel_sdk import Dashboard, HeadlineWidget
+
+    m = Module(
+        name="demo_manifest",
+        version="0.1.0",
+        dashboards=(
+            Dashboard(
+                name="demo.ov",
+                slug="ov",
+                title="T",
+                permission="demo.read",
+                widgets=(HeadlineWidget(id="h", title="t", text="x"),),
+            ),
+        ),
+    )
+    discovered = DiscoveredModule(
+        module=m, distribution_name="demo_manifest", distribution_version="0.1.0"
+    )
+    app = FastAPI()
+    mount_module(app, discovered)
+    assert "demo_manifest" in app.state.active_modules_manifest
+    assert app.state.active_modules_manifest["demo_manifest"] is m

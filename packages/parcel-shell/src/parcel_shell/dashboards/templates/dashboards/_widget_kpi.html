@@ -1,0 +1,10 @@
+<div class="border rounded p-4">
+  <div class="text-sm text-gray-500">{{ widget.title }}</div>
+  <div class="text-3xl font-semibold mt-1">{{ data.value }}</div>
+  {% if data.delta is not none %}
+  <div class="text-xs mt-1 {% if data.delta >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+    {{ '%+.1f%%'|format(data.delta * 100) }}
+    {% if data.delta_label %}<span class="text-gray-400 ml-1">{{ data.delta_label }}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
