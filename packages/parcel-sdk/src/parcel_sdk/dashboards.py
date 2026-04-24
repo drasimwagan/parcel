@@ -51,6 +51,9 @@ class Widget:
     col_span: int = 2
 
 
+# kw_only=True on data-bearing subclasses: keeps `data` required despite
+# Widget.col_span having a default. Without it, dataclass inheritance rejects
+# a non-default field after a defaulted one.
 @dataclass(frozen=True, kw_only=True)
 class KpiWidget(Widget):
     data: Callable[[Ctx], Awaitable[Kpi]]
