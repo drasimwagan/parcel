@@ -18,6 +18,7 @@ _SEVERITY_MAP = {"LOW": "warning", "MEDIUM": "error", "HIGH": "error"}
 
 def run_bandit(module_root: Path) -> list[GateFinding]:
     """Scan every .py under ``module_root`` and return structured findings."""
+    module_root = module_root.resolve()
     py_files = [str(p) for p in module_root.rglob("*.py")]
     if not py_files:
         return []
@@ -28,11 +29,15 @@ def run_bandit(module_root: Path) -> list[GateFinding]:
     findings: list[GateFinding] = []
     for issue in mgr.get_issue_list():
         severity = _SEVERITY_MAP.get(getattr(issue, "severity", "LOW"), "warning")
+        try:
+            rel = str(Path(issue.fname).resolve().relative_to(module_root))
+        except ValueError:
+            rel = issue.fname
         findings.append(
             GateFinding(
                 check="bandit",
                 severity=severity,  # type: ignore[arg-type]
-                path=str(Path(issue.fname).relative_to(module_root)),
+                path=rel,
                 line=issue.lineno,
                 rule=issue.test_id,
                 message=issue.text,

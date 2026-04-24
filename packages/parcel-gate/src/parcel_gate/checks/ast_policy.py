@@ -261,6 +261,7 @@ def run_ast_policy(
     *,
     declared_capabilities: frozenset[str],
 ) -> list[GateFinding]:
+    module_root = module_root.resolve()
     own_package = _guess_own_package(module_root)
     findings: list[GateFinding] = []
     for py in sorted(module_root.rglob("*.py")):

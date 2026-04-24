@@ -19,6 +19,7 @@ _RUFF_ERROR_PREFIXES = ("E", "F")  # syntax + pyflakes → hard errors
 
 def run_ruff(module_root: Path) -> list[GateFinding]:
     """Lint every .py under ``module_root`` and return structured findings."""
+    module_root = module_root.resolve()
     result = subprocess.run(  # noqa: S603
         [
             "ruff",
@@ -26,7 +27,11 @@ def run_ruff(module_root: Path) -> list[GateFinding]:
             "--isolated",
             "--output-format=json",
             "--no-fix",
+            "--line-length=100",
             "--select=E,F,W,B,UP,I",
+            # Whitespace/line-length findings are noise for a safety-focused
+            # gate; drop them so we don't false-reject otherwise-clean modules.
+            "--ignore=E501,W291,W292,W293",
             str(module_root),
         ],
         capture_output=True,
@@ -44,11 +49,15 @@ def run_ruff(module_root: Path) -> list[GateFinding]:
     for item in raw:
         rule = item["code"]
         severity = "error" if rule[0] in _RUFF_ERROR_PREFIXES else "warning"
+        try:
+            rel = str(Path(item["filename"]).resolve().relative_to(module_root))
+        except ValueError:
+            rel = item["filename"]
         findings.append(
             GateFinding(
                 check="ruff",
                 severity=severity,
-                path=str(Path(item["filename"]).relative_to(module_root)),
+                path=rel,
                 line=item["location"]["row"],
                 rule=rule,
                 message=item["message"],

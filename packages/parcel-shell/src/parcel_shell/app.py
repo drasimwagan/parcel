@@ -54,8 +54,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await s.commit()
 
         from parcel_shell.modules.integration import sync_active_modules
+        from parcel_shell.sandbox.service import mount_sandbox_on_boot
 
         await sync_active_modules(app)
+
+        async with sessionmaker() as s:
+            await mount_sandbox_on_boot(s, app)
 
         log.info("shell.startup", env=settings.env)
         try:
