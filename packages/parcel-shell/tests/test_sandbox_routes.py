@@ -20,9 +20,7 @@ def _zip_of(src: Path, dst: Path) -> bytes:
 
 
 @pytest.mark.asyncio
-async def test_upload_contacts_returns_201(
-    committing_admin: AsyncClient, tmp_path: Path
-) -> None:
+async def test_upload_contacts_returns_201(committing_admin: AsyncClient, tmp_path: Path) -> None:
     blob = _zip_of(CONTACTS_SRC, tmp_path / "contacts.zip")
     r = await committing_admin.post(
         "/admin/sandbox",
@@ -60,9 +58,7 @@ async def test_upload_bad_module_returns_422_with_gate_report(
         "import os\nfrom parcel_sdk import Module\n"
         "module = Module(name='bad', version='0.1.0')\n"
     )
-    (mod / "pyproject.toml").write_text(
-        '[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n'
-    )
+    (mod / "pyproject.toml").write_text('[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n')
     blob = _zip_of(mod, tmp_path / "bad.zip")
     r = await committing_admin.post(
         "/admin/sandbox",

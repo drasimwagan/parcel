@@ -17,9 +17,7 @@ def test_clean_passes() -> None:
 
 def test_os_import_blocked_without_capability() -> None:
     f = _findings("dirty_ast_os")
-    assert any(
-        x.rule == "ast.blocked_import.os" and x.severity == "error" for x in f
-    )
+    assert any(x.rule == "ast.blocked_import.os" and x.severity == "error" for x in f)
 
 
 def test_os_import_allowed_with_filesystem_capability() -> None:
@@ -45,10 +43,7 @@ def test_unsafe_builtins_always_blocked_even_with_all_capabilities() -> None:
 
 def test_parcel_shell_import_blocked() -> None:
     f = _findings("dirty_ast_parcel_shell")
-    assert any(
-        x.rule == "ast.forbidden_package.parcel_shell" and x.severity == "error"
-        for x in f
-    )
+    assert any(x.rule == "ast.forbidden_package.parcel_shell" and x.severity == "error" for x in f)
 
 
 def test_raw_sql_requires_capability() -> None:
@@ -60,6 +55,4 @@ def test_raw_sql_requires_capability() -> None:
 
 def test_dunder_escape_always_blocked() -> None:
     f = _findings("dirty_ast_dunder", caps=frozenset({"filesystem"}))
-    assert any(
-        "dunder_escape" in x.rule and x.severity == "error" for x in f
-    )
+    assert any("dunder_escape" in x.rule and x.severity == "error" for x in f)

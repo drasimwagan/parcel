@@ -62,11 +62,7 @@ def run_gate(
         findings.extend(_filter(run_ruff(module_root)))
         findings.extend(_filter(run_bandit(module_root)))
         findings.extend(
-            _filter(
-                run_ast_policy(
-                    module_root, declared_capabilities=declared_capabilities
-                )
-            )
+            _filter(run_ast_policy(module_root, declared_capabilities=declared_capabilities))
         )
     except Exception as exc:  # noqa: BLE001
         raise GateError(f"internal gate failure: {exc}") from exc

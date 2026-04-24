@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from typing import Any
 from uuid import UUID
 
 import pytest
@@ -53,10 +52,7 @@ async def test_create_sandbox_happy_path(
             assert row.gate_report["passed"] is True
             has = (
                 await db.execute(
-                    sa_text(
-                        "SELECT 1 FROM information_schema.schemata "
-                        "WHERE schema_name = :s"
-                    ),
+                    sa_text("SELECT 1 FROM information_schema.schemata " "WHERE schema_name = :s"),
                     {"s": row.schema_name},
                 )
             ).scalar()
@@ -81,9 +77,7 @@ async def test_create_sandbox_gate_rejection_leaves_no_state(
         "from parcel_sdk import Module\n"
         "module = Module(name='bad', version='0.1.0')\n"
     )
-    (mod / "pyproject.toml").write_text(
-        '[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n'
-    )
+    (mod / "pyproject.toml").write_text('[project]\nname = "parcel-mod-bad"\nversion = "0.1.0"\n')
     blob = _zip_of(mod, tmp_path / "bad.zip")
 
     engine, factory = await _with_fresh_session(settings)
@@ -126,10 +120,7 @@ async def test_dismiss_sandbox_drops_schema(
             assert reloaded.status == "dismissed"
             has = (
                 await db.execute(
-                    sa_text(
-                        "SELECT 1 FROM information_schema.schemata "
-                        "WHERE schema_name = :s"
-                    ),
+                    sa_text("SELECT 1 FROM information_schema.schemata " "WHERE schema_name = :s"),
                     {"s": schema},
                 )
             ).scalar()
@@ -158,18 +149,13 @@ async def test_prune_expired_dismisses_old_active_rows(
         # Rewind expires_at to the past.
         async with factory() as db:
             await db.execute(
-                sa_text(
-                    "UPDATE shell.sandbox_installs "
-                    "SET expires_at = :t WHERE id = :id"
-                ),
+                sa_text("UPDATE shell.sandbox_installs " "SET expires_at = :t WHERE id = :id"),
                 {"t": datetime.now(UTC) - timedelta(days=1), "id": sb_id},
             )
             await db.commit()
 
         async with factory() as db:
-            count = await sandbox_service.prune_expired(
-                db, committing_app, now=datetime.now(UTC)
-            )
+            count = await sandbox_service.prune_expired(db, committing_app, now=datetime.now(UTC))
             await db.commit()
             assert count == 1
             row = await db.get(SandboxInstall, sb_id)

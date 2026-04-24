@@ -21,7 +21,7 @@ def run_ruff(module_root: Path) -> list[GateFinding]:
     """Lint every .py under ``module_root`` and return structured findings."""
     module_root = module_root.resolve()
     result = subprocess.run(  # noqa: S603
-        [
+        [  # noqa: S607 — ruff is on PATH via the workspace env
             "ruff",
             "check",
             "--isolated",

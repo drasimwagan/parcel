@@ -29,9 +29,7 @@ def test_report_errors_vs_warnings() -> None:
         rule="W291",
         message="trailing whitespace",
     )
-    r = GateReport(
-        passed=False, findings=(e, w), ran_at=datetime.now(UTC), duration_ms=42
-    )
+    r = GateReport(passed=False, findings=(e, w), ran_at=datetime.now(UTC), duration_ms=42)
     assert r.errors == (e,)
     assert r.warnings == (w,)
 

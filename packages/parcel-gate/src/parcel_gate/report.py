@@ -28,7 +28,7 @@ class GateFinding:
         }
 
     @classmethod
-    def from_dict(cls, raw: dict) -> "GateFinding":
+    def from_dict(cls, raw: dict) -> GateFinding:
         return cls(
             check=raw["check"],
             severity=raw["severity"],
@@ -63,7 +63,7 @@ class GateReport:
         }
 
     @classmethod
-    def from_dict(cls, raw: dict) -> "GateReport":
+    def from_dict(cls, raw: dict) -> GateReport:
         return cls(
             passed=raw["passed"],
             findings=tuple(GateFinding.from_dict(f) for f in raw["findings"]),

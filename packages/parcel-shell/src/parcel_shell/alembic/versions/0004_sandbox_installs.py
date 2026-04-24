@@ -82,9 +82,7 @@ def upgrade() -> None:
             {"name": name, "description": description},
         )
 
-    admin_id = conn.execute(
-        sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")
-    ).scalar_one()
+    admin_id = conn.execute(sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")).scalar_one()
     for name, _ in SANDBOX_PERMISSIONS:
         conn.execute(
             sa.text(

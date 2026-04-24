@@ -44,11 +44,7 @@ async def sandbox_list(
     db: AsyncSession = Depends(get_session),
 ) -> Response:
     rows = (
-        (
-            await db.execute(
-                select(SandboxInstall).order_by(SandboxInstall.created_at.desc())
-            )
-        )
+        (await db.execute(select(SandboxInstall).order_by(SandboxInstall.created_at.desc())))
         .scalars()
         .all()
     )

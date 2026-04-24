@@ -26,11 +26,7 @@ async def list_sandboxes(
     db: AsyncSession = Depends(get_session),
 ) -> list[SandboxOut]:
     rows = (
-        (
-            await db.execute(
-                select(SandboxInstall).order_by(SandboxInstall.created_at.desc())
-            )
-        )
+        (await db.execute(select(SandboxInstall).order_by(SandboxInstall.created_at.desc())))
         .scalars()
         .all()
     )

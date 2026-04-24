@@ -72,9 +72,7 @@ async def _list() -> None:
             rows = (
                 (
                     await db.execute(
-                        select(SandboxInstall).order_by(
-                            SandboxInstall.created_at.desc()
-                        )
+                        select(SandboxInstall).order_by(SandboxInstall.created_at.desc())
                     )
                 )
                 .scalars()
@@ -129,7 +127,7 @@ async def _show(sandbox_id: UUID) -> None:
 def promote(
     sandbox_id: str = typer.Argument(...),
     name: str = typer.Argument(..., help="Target module name."),
-    capability: list[str] = typer.Option(
+    capability: list[str] = typer.Option(  # noqa: B008
         [], "--capability", "-c", help="Approve a declared capability. Repeatable."
     ),
 ) -> None:
@@ -196,8 +194,6 @@ async def _prune() -> None:
     async with with_shell() as fast_app:
         sessionmaker = fast_app.state.sessionmaker
         async with sessionmaker() as db:
-            count = await sandbox_service.prune_expired(
-                db, fast_app, now=datetime.now(UTC)
-            )
+            count = await sandbox_service.prune_expired(db, fast_app, now=datetime.now(UTC))
             await db.commit()
     typer.echo(f"dismissed {count} expired sandbox(es)")

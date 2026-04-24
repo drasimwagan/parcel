@@ -227,22 +227,26 @@ class _Policy(ast.NodeVisitor):
                         f"ast.blocked_call.{fn.id}",
                         f"{fn.id}() requires capability {cap!r}",
                     )
-        elif isinstance(fn, ast.Attribute) and fn.attr == "text":
-            if isinstance(fn.value, ast.Name) and fn.value.id == "sqlalchemy":
-                if "raw_sql" not in self.caps:
-                    self._emit(
-                        "error",
-                        node.lineno,
-                        "ast.raw_sql",
-                        "sqlalchemy.text() requires capability 'raw_sql'",
-                    )
-                else:
-                    self._emit(
-                        "warning",
-                        node.lineno,
-                        "ast.raw_sql",
-                        "sqlalchemy.text() allowed by capability 'raw_sql'",
-                    )
+        elif (
+            isinstance(fn, ast.Attribute)
+            and fn.attr == "text"
+            and isinstance(fn.value, ast.Name)
+            and fn.value.id == "sqlalchemy"
+        ):
+            if "raw_sql" not in self.caps:
+                self._emit(
+                    "error",
+                    node.lineno,
+                    "ast.raw_sql",
+                    "sqlalchemy.text() requires capability 'raw_sql'",
+                )
+            else:
+                self._emit(
+                    "warning",
+                    node.lineno,
+                    "ast.raw_sql",
+                    "sqlalchemy.text() allowed by capability 'raw_sql'",
+                )
         self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:

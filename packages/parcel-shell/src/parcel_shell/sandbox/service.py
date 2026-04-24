@@ -89,9 +89,7 @@ def _copy_tree(src: Path, dst: Path) -> None:
         if p.name in {"__pycache__", ".git", ".venv", "node_modules", ".pytest_cache"}:
             continue
         if p.is_dir():
-            shutil.copytree(
-                p, dst / p.name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
-            )
+            shutil.copytree(p, dst / p.name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         else:
             shutil.copy2(p, dst / p.name)
 
@@ -114,9 +112,7 @@ def _read_manifest(root: Path) -> tuple[str, str, list[str], str]:
     project = data.get("project", {})
     name_raw = project.get("name", "")
     if not name_raw.startswith("parcel-mod-"):
-        raise ValueError(
-            f"manifest name must start with 'parcel-mod-' (got {name_raw!r})"
-        )
+        raise ValueError(f"manifest name must start with 'parcel-mod-' (got {name_raw!r})")
     name = name_raw.removeprefix("parcel-mod-")
     version = project.get("version", "0.1.0")
     package_name = f"parcel_mod_{name}"
@@ -139,7 +135,7 @@ def _read_manifest(root: Path) -> tuple[str, str, list[str], str]:
     return name, version, caps, package_name
 
 
-def _mount_sandbox(app: "FastAPI", module_obj, url_prefix: str) -> None:
+def _mount_sandbox(app: FastAPI, module_obj, url_prefix: str) -> None:
     from parcel_shell.ui.templates import add_template_dir
 
     if module_obj.router is not None:
@@ -166,13 +162,24 @@ async def _run_sandbox_alembic(
     loaded = load_sandbox_module(sandbox_root, package_name, sandbox_id=short)
     if hasattr(loaded, "module") and loaded.module.metadata is not None:
         loaded.module.metadata.schema = schema_name
-    sys.modules[package_name] = loaded
 
-    ini = sandbox_root / "src" / package_name / "alembic.ini"
-    cfg = Config(str(ini))
-    cfg.set_main_option("sqlalchemy.url", settings.database_url)
-    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
-    await asyncio.to_thread(command.upgrade, cfg, "head")
+    # Temporarily alias the sandbox copy under the canonical import name so
+    # the module's env.py (which does ``from parcel_mod_X import module``)
+    # picks up the schema-patched metadata. Restore afterwards so the
+    # installed copy of the module (if any) isn't shadowed.
+    previous = sys.modules.get(package_name)
+    sys.modules[package_name] = loaded
+    try:
+        ini = sandbox_root / "src" / package_name / "alembic.ini"
+        cfg = Config(str(ini))
+        cfg.set_main_option("sqlalchemy.url", settings.database_url)
+        cfg.set_main_option("script_location", str(ini.parent / "alembic"))
+        await asyncio.to_thread(command.upgrade, cfg, "head")
+    finally:
+        if previous is not None:
+            sys.modules[package_name] = previous
+        else:
+            sys.modules.pop(package_name, None)
 
 
 async def create_sandbox(
@@ -180,7 +187,7 @@ async def create_sandbox(
     *,
     source_zip_bytes: bytes | None = None,
     source_dir: Path | None = None,
-    app: "FastAPI",
+    app: FastAPI,
     settings: Settings,
 ) -> SandboxInstall:
     if source_zip_bytes is None and source_dir is None:
@@ -200,9 +207,7 @@ async def create_sandbox(
             _copy_tree(source_dir, sandbox_root)
 
         name, version, declared_caps, package_name = _read_manifest(sandbox_root)
-        report = run_gate(
-            sandbox_root, declared_capabilities=frozenset(declared_caps)
-        )
+        report = run_gate(sandbox_root, declared_capabilities=frozenset(declared_caps))
         if not report.passed:
             raise GateRejected(report)
 
@@ -213,9 +218,7 @@ async def create_sandbox(
         await db.flush()
         await db.commit()
 
-        await _run_sandbox_alembic(
-            sandbox_root, package_name, schema_name, settings, sandbox_id
-        )
+        await _run_sandbox_alembic(sandbox_root, package_name, schema_name, settings, sandbox_id)
 
         loaded = load_sandbox_module(sandbox_root, package_name, sandbox_id=short_id)
         if hasattr(loaded, "module") and loaded.module.metadata is not None:
@@ -245,9 +248,7 @@ async def create_sandbox(
         raise
 
 
-async def dismiss_sandbox(
-    db: AsyncSession, sandbox_id: uuid.UUID, app: "FastAPI"
-) -> None:
+async def dismiss_sandbox(db: AsyncSession, sandbox_id: uuid.UUID, app: FastAPI) -> None:
     """Drop the sandbox schema, remove files, mark the row dismissed.
 
     Note: the FastAPI router stays mounted — unmounting at runtime is not
@@ -301,9 +302,9 @@ async def promote_sandbox(
     *,
     target_name: str,
     approve_capabilities: list[str],
-    app: "FastAPI",
+    app: FastAPI,
     settings: Settings,
-) -> "InstalledModule":
+) -> InstalledModule:
     from parcel_shell.modules import service as module_service
     from parcel_shell.modules.discovery import discover_modules
     from parcel_shell.modules.models import InstalledModule
@@ -322,16 +323,15 @@ async def promote_sandbox(
     dst = repo_root / "modules" / target_name
     if dst.exists():
         raise TargetNameTaken(target_name)
-    shutil.copytree(
-        row.module_root, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
-    )
+    shutil.copytree(row.module_root, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 
     orig_pkg = f"parcel_mod_{row.name}"
     new_pkg = f"parcel_mod_{target_name}"
     if row.name != target_name:
         _rewrite_package_name(dst, orig_pkg, new_pkg, row.name, target_name)
 
-    subprocess.run(  # noqa: S603
+    await asyncio.to_thread(
+        subprocess.run,  # noqa: S603, S607
         ["uv", "pip", "install", "-e", str(dst)],
         check=True,
         capture_output=True,
@@ -359,9 +359,7 @@ async def promote_sandbox(
     return installed
 
 
-async def prune_expired(
-    db: AsyncSession, app: "FastAPI", *, now: datetime
-) -> int:
+async def prune_expired(db: AsyncSession, app: FastAPI, *, now: datetime) -> int:
     rows = (
         (
             await db.execute(
@@ -379,14 +377,10 @@ async def prune_expired(
     return len(rows)
 
 
-async def mount_sandbox_on_boot(db: AsyncSession, app: "FastAPI") -> None:
+async def mount_sandbox_on_boot(db: AsyncSession, app: FastAPI) -> None:
     """Lifespan hook — re-mount every active sandbox."""
     rows = (
-        (
-            await db.execute(
-                select(SandboxInstall).where(SandboxInstall.status == "active")
-            )
-        )
+        (await db.execute(select(SandboxInstall).where(SandboxInstall.status == "active")))
         .scalars()
         .all()
     )
@@ -398,17 +392,12 @@ async def mount_sandbox_on_boot(db: AsyncSession, app: "FastAPI") -> None:
         package_name = f"parcel_mod_{row.name}"
         short = row.id.hex[:8]
         try:
-            loaded = load_sandbox_module(
-                sandbox_root, package_name, sandbox_id=short
-            )
+            loaded = load_sandbox_module(sandbox_root, package_name, sandbox_id=short)
             if hasattr(loaded, "module") and loaded.module.metadata is not None:
                 loaded.module.metadata.schema = row.schema_name
-            sys.modules[package_name] = loaded
             _mount_sandbox(app, loaded.module, row.url_prefix)
         except Exception as exc:  # noqa: BLE001
-            _log.warning(
-                "sandbox.remount_failed", id=str(row.id), error=str(exc)
-            )
+            _log.warning("sandbox.remount_failed", id=str(row.id), error=str(exc))
 
 
 def _ref_sandbox_import_name() -> str:
