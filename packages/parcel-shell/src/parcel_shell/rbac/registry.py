@@ -66,6 +66,7 @@ SHELL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("sandbox.read", "View sandbox installs and gate reports"),
     ("sandbox.install", "Upload and install candidates into the sandbox"),
     ("sandbox.promote", "Promote a sandbox install to a real module install"),
+    ("ai.generate", "Generate a module draft via the Claude generator"),
 )
 
 

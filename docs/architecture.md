@@ -103,3 +103,50 @@ A set of patterns are **always** blocked regardless of capabilities declared: `i
 Sandbox isolation is logical, not physical: the sandbox shares the shell's Python process, FastAPI app, and DB pool. The gate is what prevents a sandboxed module from doing damage. Each sandbox module is loaded with a unique `sys.modules` entry (`parcel_mod_<name>__sandbox_<short-uuid>`) so two sandboxes of the same base name coexist. Before Alembic runs, the manifest's `metadata.schema` is patched in-memory to `mod_sandbox_<uuid>`.
 
 Admin surfaces: HTML at `/sandbox`, JSON at `/admin/sandbox`, CLI at `parcel sandbox install|list|show|promote|dismiss|prune`. Three new permissions (`sandbox.read`/`install`/`promote`) attach to the built-in `admin` role via migration 0004.
+
+## Claude generator (Phase 7b)
+
+The generator wraps the Phase 7a pipeline with a Claude-backed front end. Admin supplies a natural-language prompt; the shell turns it into a candidate module and hands it straight to the existing `create_sandbox` call.
+
+```
+POST /admin/ai/generate {"prompt": ...}
+      │
+      ▼
+generate_module(prompt, provider, db, app, settings)
+      │
+      ▼
+provider.generate(prompt, tmp_dir, prior=None)
+      │
+      ├── AnthropicAPIProvider: SDK call with write_file / submit_module tools
+      └── ClaudeCodeCLIProvider: subprocess `claude -p ... --output-format json`
+      │
+      ▼
+zip(files) ──> create_sandbox(...)  [Phase 7a]
+      │
+   gate pass ──> SandboxInstall (201)
+   gate fail ──> retry ONCE with prior gate report attached
+             ──> still fails → GenerationFailure(kind="exceeded_retries") (422)
+```
+
+**Provider selection** happens at shell startup. `PARCEL_AI_PROVIDER=api` (default) requires `ANTHROPIC_API_KEY`; `PARCEL_AI_PROVIDER=cli` uses the `claude` binary on PATH (no API key needed, but the CLI needs its own auth). If the API provider is selected without a key, the shell still boots — the endpoint returns 503 until a key is configured.
+
+**Safety caps** on the API provider:
+
+- Max 20 tool-use iterations per `generate()` call (runaway prevention).
+- 64 KiB max per `write_file` call; 1 MiB total across all files.
+- `write_file` paths must be relative POSIX without `..`, no `.sh`/`.exe`/`.so`/`.dll`/`.dylib`.
+- The CLI provider's subprocess runs with `cwd` set to a throwaway `tempfile.TemporaryDirectory()` — it never writes directly into `var/sandbox/<uuid>/`.
+
+**The system prompt** lives in the repo at `packages/parcel-shell/src/parcel_shell/ai/prompts/generate_module.md` and is loaded via `importlib.resources`. It contains the full reference module scaffold (the seven files `parcel new-module` emits), the tool contract, the capability vocabulary, and the gate's hard-block list — so Claude's first pass has a realistic chance of passing the gate without repair.
+
+**Failure-kind → HTTP status** mapping:
+
+| Kind | Status | Meaning |
+|---|---|---|
+| `provider_error` | 502 | Network / auth / malformed tool use / subprocess crash |
+| `no_files` | 400 | Provider returned zero files |
+| `gate_rejected` / `exceeded_retries` | 422 | Gate rejected one or both attempts |
+
+Observability: every generation logs a structured event with `prompt_hash` (first 16 hex of SHA-256), provider, attempt count, duration, and result/failure-kind. No raw prompt text is logged.
+
+New permission `ai.generate` (migration 0005) on the admin role.
