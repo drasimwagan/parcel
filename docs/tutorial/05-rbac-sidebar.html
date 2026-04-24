@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>05 · Permissions and sidebar — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 05 · Permissions and sidebar
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">05</span> Permissions, sidebar, capabilities</h1>
+  <p class="tut-lede">
+    Our router already references <code>notes.read</code> and
+    <code>notes.write</code>, but they don't exist yet. Permissions are part
+    of the module's manifest — declare them there and the shell registers
+    them into the RBAC system and attaches them to the admin role at install
+    time. The sidebar works the same way.
+  </p>
+
+  <h2>Declare the permissions</h2>
+  <p>
+    Open <code>src/parcel_mod_notes/__init__.py</code> and add the two
+    permissions. While we're here we'll also add a sidebar item.
+  </p>
+  <pre><code>from __future__ import annotations
+
+from pathlib import Path
+
+from parcel_mod_notes.models import metadata
+from parcel_mod_notes.router import router
+from parcel_sdk import Module, Permission, SidebarItem
+
+module = Module(
+    name="notes",
+    version="0.1.0",
+    permissions=(
+        Permission("notes.read", "View notes"),
+        Permission("notes.write", "Create, update, and delete notes"),
+    ),
+    capabilities=(),
+    alembic_ini=Path(__file__).parent / "alembic.ini",
+    metadata=metadata,
+    router=router,
+    templates_dir=Path(__file__).parent / "templates",
+    sidebar_items=(
+        SidebarItem(label="Notes", href="/mod/notes/", permission="notes.read"),
+    ),
+)
+
+__all__ = ["module"]</code></pre>
+
+  <h2>What happens at install time</h2>
+  <p>
+    When an admin installs your module (via the CLI, the admin UI, or a
+    sandbox promote), the shell's <code>install_module</code> service:
+  </p>
+  <ol>
+    <li>Creates the <code>mod_notes</code> schema.</li>
+    <li>Upserts your declared permissions into <code>shell.permissions</code>.</li>
+    <li>Attaches every declared permission to the built-in <code>admin</code> role (so admins can immediately use the module).</li>
+    <li>Runs your Alembic migrations against the new schema.</li>
+    <li>Records a row in <code>shell.installed_modules</code> with your version, approved capabilities, and current head revision.</li>
+    <li>Mounts your router and prepends your templates dir on the live app.</li>
+  </ol>
+  <p>
+    You don't write any of this logic. The shell does it because you declared
+    a manifest.
+  </p>
+
+  <h2>Assigning permissions to other roles</h2>
+  <p>
+    Admin gets every permission by default. For any other role — say, "staff"
+    — an admin assigns <code>notes.read</code> (and optionally
+    <code>notes.write</code>) through the admin UI at <code>/roles</code>.
+    Your module doesn't need to care: the shell's RBAC system handles the
+    storage, the <code>require_permission</code> dep checks at request time,
+    and the composed sidebar filters out items the user can't see.
+  </p>
+
+  <h2>The sidebar item</h2>
+  <p>
+    We declared one:
+  </p>
+  <pre><code>SidebarItem(label="Notes", href="/mod/notes/", permission="notes.read")</code></pre>
+  <p>
+    Three fields. The <code>permission</code> is optional — if omitted, the
+    item is shown to every logged-in user. Ours is gated on
+    <code>notes.read</code>, which means users who lack that permission won't
+    see "Notes" in the sidebar. (They also can't reach <code>/mod/notes/</code>
+    because of the <code>require_permission</code> dep — the sidebar filter is
+    UX, not security.)
+  </p>
+  <p>
+    Modules get their own section in the sidebar, labelled with the module's
+    name. So after install, the sidebar grows a "Notes" section with one
+    "Notes" entry inside it. Multi-entry modules (like Contacts, which has
+    "Contacts" and "Companies") get multiple <code>SidebarItem</code> tuples.
+  </p>
+
+  <h2>Capabilities</h2>
+  <p>
+    Our Notes module declares <code>capabilities=()</code> — an empty tuple.
+    That's the correct default for any business-CRUD module. <strong>Only
+    declare a capability when your module genuinely needs it</strong>, and
+    even then, expect the admin to scrutinise it at install time.
+  </p>
+  <p>The four values:</p>
+  <ul>
+    <li><code>"filesystem"</code> — unlocks <code>import os</code> and calls to <code>open()</code>.</li>
+    <li><code>"process"</code> — unlocks <code>import subprocess</code>.</li>
+    <li><code>"network"</code> — unlocks <code>socket</code>, <code>urllib</code>, <code>http.*</code>, <code>httpx</code>, <code>requests</code>, <code>aiohttp</code>.</li>
+    <li><code>"raw_sql"</code> — unlocks <code>sqlalchemy.text(...)</code>.</li>
+  </ul>
+  <p>
+    If you need to POST to an external API, you'd declare
+    <code>capabilities=("network",)</code>. The gate will then allow
+    <code>import httpx</code> in your module; without it, the gate rejects
+    the install. Admins see the capability list at install time and decide
+    whether to approve.
+  </p>
+
+  <div class="callout">
+    <strong>Some things are always blocked.</strong> Regardless of what you
+    declare, the gate rejects <code>import sys</code>, <code>import
+    importlib</code>, any import from <code>parcel_shell.*</code>, calls to
+    <code>eval</code>/<code>exec</code>/<code>compile</code>/<code>__import__</code>,
+    and access to sandbox-escape dunders like <code>__subclasses__</code>.
+    There is no capability that unlocks these. If you genuinely need that
+    behaviour, you're writing platform code (it goes in <code>parcel-shell</code>),
+    not a module.
+  </div>
+
+  <h2>Verify</h2>
+  <pre><code>uv run pytest modules/notes/
+uv run parcel sandbox install ./modules/notes</code></pre>
+  <p>
+    Sandbox install still passes. The gate now sees your two permissions and
+    the sidebar item — declared, not used in any risky way, so no finding.
+  </p>
+
+  <h2>Try it in the admin UI</h2>
+  <pre><code># In one terminal, keep the dev server running:
+uv run parcel dev
+
+# In another, install into the real schema (not sandbox):
+uv run parcel install ./modules/notes
+uv run parcel migrate</code></pre>
+  <p>
+    Refresh <code>http://localhost:8000/</code>. The sidebar now has a "Notes"
+    section (scroll down in the left nav). Click "Notes", you should land on
+    an empty list page. "+ New note" takes you to the form. Submit it. You
+    should land on the detail page with a success flash.
+  </p>
+  <p>
+    If any of that fails, check the shell logs — they're structured JSON in
+    non-dev envs, readable text in dev.
+  </p>
+
+  <div class="tut-pager">
+    <a class="prev" href="04-http.html">
+      <span class="label">Previous</span>
+      04 · HTTP layer
+    </a>
+    <a class="next" href="06-testing.html">
+      <span class="label">Next</span>
+      06 · Testing
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

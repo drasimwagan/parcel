@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>02 · Scaffolding with the CLI — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 02 · Scaffolding with the CLI
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">02</span> Scaffolding with the CLI</h1>
+  <p class="tut-lede">
+    The <code>parcel</code> CLI ships a scaffolder. One command produces a
+    gate-passing, end-to-end working skeleton. We'll walk through every file
+    it generates so nothing is mysterious later when we start editing.
+  </p>
+
+  <h2>Run it</h2>
+  <pre><code>uv run parcel new-module notes
+uv sync --all-packages</code></pre>
+  <p>
+    The first command writes <code>modules/notes/</code> with the skeleton.
+    The second makes the new package importable (the <code>uv</code> workspace
+    picks it up automatically because <code>modules/*</code> is already a
+    member in the root <code>pyproject.toml</code>).
+  </p>
+
+  <div class="callout">
+    <strong>Naming.</strong> Module names must be snake_case and match
+    <code>[a-z][a-z0-9_]*</code>. That becomes your package name
+    (<code>parcel_mod_notes</code>), your schema name (<code>mod_notes</code>),
+    your URL prefix (<code>/mod/notes/</code>), and the prefix of your
+    permissions (<code>notes.read</code>, <code>notes.write</code>).
+  </div>
+
+  <h2>The generated tree</h2>
+  <div class="file-tree">
+modules/notes/<br>
+├── <span class="hl">pyproject.toml</span>                         <span class="dim"># entry point + deps</span><br>
+├── README.md<br>
+├── src/parcel_mod_notes/<br>
+│   ├── <span class="hl">__init__.py</span>                        <span class="dim"># Module(...) manifest</span><br>
+│   ├── <span class="hl">models.py</span>                          <span class="dim"># SQLAlchemy DeclarativeBase</span><br>
+│   ├── <span class="hl">router.py</span>                          <span class="dim"># FastAPI APIRouter</span><br>
+│   ├── <span class="hl">alembic.ini</span>                        <span class="dim"># Alembic pointer</span><br>
+│   ├── alembic/<br>
+│   │   ├── <span class="hl">env.py</span>                         <span class="dim"># delegates to parcel_sdk</span><br>
+│   │   ├── script.py.mako<br>
+│   │   └── versions/<br>
+│   │       └── <span class="hl">0001_init.py</span>               <span class="dim"># CREATE SCHEMA mod_notes</span><br>
+│   └── templates/notes/<br>
+│       └── <span class="hl">index.html</span>                     <span class="dim"># Jinja template</span><br>
+└── tests/<br>
+ &nbsp;&nbsp;&nbsp;└── <span class="hl">test_smoke.py</span>                      <span class="dim"># identity assertion</span>
+  </div>
+
+  <p>
+    Ten files. Every real module ends up in this shape — add more models, more
+    routes, more templates, but the tree stays recognisable.
+  </p>
+
+  <h2>File-by-file</h2>
+
+  <h3>pyproject.toml</h3>
+  <pre><code>[project]
+name = "parcel-mod-notes"
+version = "0.1.0"
+description = "Parcel module: notes"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "parcel-sdk",
+    "fastapi&gt;=0.115",
+]
+
+[project.entry-points."parcel.modules"]
+notes = "parcel_mod_notes:module"
+
+[tool.uv.sources]
+parcel-sdk = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/parcel_mod_notes"]</code></pre>
+  <p>
+    The runtime dep list is intentionally tiny — <code>parcel-sdk</code> and
+    <code>fastapi</code>. Nothing else. That's the whole point of the SDK
+    facade from Phase 6: your module doesn't pull in the shell or any of its
+    deps as a runtime requirement. Your tests <em>will</em> need
+    <code>parcel-shell</code>, but that goes into a dev-only group (we'll see
+    this in the testing step).
+  </p>
+
+  <h3>src/parcel_mod_notes/__init__.py</h3>
+  <pre><code>from __future__ import annotations
+
+from pathlib import Path
+
+from parcel_mod_notes.models import metadata
+from parcel_mod_notes.router import router
+from parcel_sdk import Module
+
+module = Module(
+    name="notes",
+    version="0.1.0",
+    permissions=(),
+    capabilities=(),
+    alembic_ini=Path(__file__).parent / "alembic.ini",
+    metadata=metadata,
+    router=router,
+    templates_dir=Path(__file__).parent / "templates",
+    sidebar_items=(),
+)
+
+__all__ = ["module"]</code></pre>
+  <p>
+    This is the single most important file in your module. It's the manifest
+    the shell reads. Over the next few steps we'll fill in the empty tuples
+    (<code>permissions</code>, <code>sidebar_items</code>) and wire in the
+    real entity model.
+  </p>
+
+  <h3>src/parcel_mod_notes/models.py</h3>
+  <pre><code>from __future__ import annotations
+
+from sqlalchemy import MetaData
+from sqlalchemy.orm import DeclarativeBase
+
+metadata = MetaData(schema="mod_notes")
+
+
+class NotesBase(DeclarativeBase):
+    metadata = metadata  # type: ignore[assignment]</code></pre>
+  <p>
+    Every table class will inherit <code>NotesBase</code>. The
+    <code>MetaData(schema="mod_notes")</code> line is what pins every table to
+    your schema — you won't repeat the schema name on each class.
+  </p>
+
+  <h3>src/parcel_mod_notes/router.py</h3>
+  <pre><code>from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, Request, Response
+from starlette.responses import HTMLResponse
+
+from parcel_sdk import shell_api
+
+router = APIRouter(tags=["mod-notes"])
+
+
+@router.get("/", response_class=HTMLResponse)
+async def index(
+    request: Request,
+    user: Any = Depends(shell_api.require_permission("")),
+) -> Response:
+    # Replace "" with a real permission once you declare one in
+    # module.permissions. Until then, only authenticated users pass.
+    tpl = shell_api.get_templates()
+    perms = await shell_api.effective_permissions(request, user)
+    return tpl.TemplateResponse(
+        request,
+        "notes/index.html",
+        {
+            "user": user,
+            "sidebar": shell_api.sidebar_for(request, perms),
+            "active_path": "/mod/notes",
+            "settings": request.app.state.settings,
+        },
+    )</code></pre>
+  <p>
+    A single placeholder route with an intentionally-incomplete
+    <code>require_permission("")</code>. That's a TODO marker — we'll replace
+    it with <code>notes.read</code> once we declare that permission.
+  </p>
+
+  <h3>Alembic scaffolding</h3>
+  <p>
+    <code>alembic.ini</code> + <code>alembic/env.py</code> +
+    <code>alembic/script.py.mako</code> + a first <code>0001_init.py</code>
+    revision that creates the schema. You'll rarely touch <code>env.py</code>
+    — it simply imports your module's manifest and calls
+    <code>parcel_sdk.alembic_env.run_async_migrations(module)</code>. The rest
+    of the Alembic machinery is wired the way you'd expect.
+  </p>
+
+  <h3>templates/notes/index.html</h3>
+  <pre><code>{% extends "_base.html" %}
+{% block content %}
+&lt;h1&gt;notes&lt;/h1&gt;
+&lt;p&gt;Hello from the notes module.&lt;/p&gt;
+{% endblock %}</code></pre>
+  <p>
+    <code>_base.html</code> is the shell's base layout — topbar, sidebar, flash
+    region, theme switching. You extend it; you don't rebuild it.
+  </p>
+
+  <h3>tests/test_smoke.py</h3>
+  <pre><code>from __future__ import annotations
+
+from parcel_mod_notes import module
+
+
+def test_module_identity() -> None:
+    assert module.name == "notes"
+    assert module.version == "0.1.0"</code></pre>
+  <p>
+    A ten-line smoke test. It imports your manifest and asserts the name.
+    That's enough to catch "I broke <code>__init__.py</code> in a way that
+    doesn't import" — useful on every Phase 6+ CLI run.
+  </p>
+
+  <h2>Verify the scaffold works</h2>
+  <pre><code>uv run pytest modules/notes/</code></pre>
+  <p>
+    The smoke test should pass. Also run:
+  </p>
+  <pre><code>uv run parcel sandbox install ./modules/notes</code></pre>
+  <p>
+    That installs your (empty) module into a sandbox. Either the gate says
+    "pass" and you get a sandbox UUID, or it gives you a focused error
+    message. A fresh scaffold passes the gate with zero warnings — if it
+    doesn't, something is genuinely wrong.
+  </p>
+
+  <div class="callout">
+    <strong>Rule of thumb.</strong> Commit after scaffolding. Before you start
+    changing anything substantial, the gate-clean scaffold is your known-good
+    baseline. Every edit is a diff from that baseline.
+  </div>
+
+  <div class="tut-pager">
+    <a class="prev" href="01-foundations.html">
+      <span class="label">Previous</span>
+      01 · Foundations
+    </a>
+    <a class="next" href="03-data.html">
+      <span class="label">Next</span>
+      03 · Data layer
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

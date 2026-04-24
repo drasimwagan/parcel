@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>01 · Foundations — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 01 · Foundations
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">01</span> Foundations</h1>
+  <p class="tut-lede">
+    Before we scaffold a single file, it's worth being precise about what a
+    Parcel module <em>is</em>. That framing makes the rest of the tutorial —
+    and every design choice the platform enforces — obvious instead of arbitrary.
+  </p>
+
+  <h2>The one-paragraph definition</h2>
+  <p>
+    A <strong>Parcel module</strong> is a pip-installable Python package that
+    contributes a FastAPI router, its own Postgres schema, its own Alembic
+    migrations, a set of permissions, and optionally some Jinja templates and
+    sidebar entries — all through a stable SDK surface called
+    <code>parcel_sdk</code>. The shell discovers modules via Python entry
+    points, installs them on admin request, runs their migrations against
+    their dedicated schema, and mounts their routes under <code>/mod/&lt;name&gt;/</code>.
+  </p>
+
+  <h2>The three-layer architecture</h2>
+  <p>
+    Parcel is intentionally three layers, with strict rules about who imports
+    what.
+  </p>
+
+  <pre><code>┌────────────────────────────────────────────────────────────┐
+│  parcel-shell  (the FastAPI app)                           │
+│  auth · RBAC · admin UI · module loader · AI pipeline      │
+│                                                            │
+│  Never imports from any module by name.                    │
+├────────────────────────────────────────────────────────────┤
+│  parcel-sdk  (the stable API modules import)               │
+│  Module, Permission, SidebarItem, shell_api (6 functions)  │
+│                                                            │
+│  The shell fills this in at startup via shell_api.bind().  │
+├────────────────────────────────────────────────────────────┤
+│  modules  (pip packages, entry-point discovered)           │
+│  parcel_mod_contacts · parcel_mod_notes · …                │
+│                                                            │
+│  Only ever import parcel_sdk.*                             │
+└────────────────────────────────────────────────────────────┘</code></pre>
+
+  <p>
+    The shell is what users log into. The SDK is the only surface your module
+    talks to. Modules never reach inside the shell — not into
+    <code>parcel_shell.db</code>, not into <code>parcel_shell.ui.*</code>,
+    nothing. When a module needs a database session, a permission check, or
+    the shared template loader, it goes through <code>parcel_sdk.shell_api</code>.
+  </p>
+
+  <div class="callout">
+    <strong>Why this matters.</strong> Modules can be AI-generated and
+    installed sight-unseen into a sandbox. The static-analysis gate (Phase 7a)
+    rejects anything that imports <code>parcel_shell.*</code> because that
+    would let an AI-authored module reach around the facade and do whatever it
+    wanted. The SDK boundary is load-bearing for safety, not just aesthetics.
+  </div>
+
+  <h2>What the SDK gives you</h2>
+  <p>
+    <code>parcel_sdk</code> exports roughly six useful things:
+  </p>
+  <ul>
+    <li><code>Module</code> — the manifest dataclass. Name, version, permissions, router, templates dir, sidebar items, Alembic ini, metadata.</li>
+    <li><code>Permission</code> — a named permission + description.</li>
+    <li><code>SidebarItem</code> — a label + href + optional permission gate.</li>
+    <li><code>run_async_migrations</code> — the helper your Alembic <code>env.py</code> calls.</li>
+    <li><code>shell_api</code> — the facade: <code>get_session()</code>, <code>require_permission(name)</code>, <code>effective_permissions(request, user)</code>, <code>set_flash(response, flash)</code>, <code>get_templates()</code>, <code>sidebar_for(request, perms)</code>.</li>
+    <li><code>shell_api.Flash</code> — frozen dataclass for one-shot UI banners (<code>kind="success"|"error"|"info"</code>).</li>
+  </ul>
+  <p>
+    Every handler in every module lives inside these six functions. If you find
+    yourself wanting something that isn't there, the answer is almost always
+    "write a service function inside your module" — the shell's job is to
+    provide primitives, not application logic.
+  </p>
+
+  <h2>The module lifecycle</h2>
+  <ol>
+    <li>
+      <strong>Author.</strong> You <code>parcel new-module &lt;name&gt;</code>
+      (or describe it to the AI at <code>/ai</code>). Files land in
+      <code>modules/&lt;name&gt;/</code>.
+    </li>
+    <li>
+      <strong>Discover.</strong> After <code>uv sync --all-packages</code>,
+      Python's entry-point registry knows your <code>parcel.modules</code>
+      entry. The shell's <code>discover_modules()</code> finds it on boot.
+    </li>
+    <li>
+      <strong>Install.</strong> An admin approves your declared capabilities
+      via <code>POST /admin/modules/install</code> (or <code>parcel install</code>,
+      or a sandbox promotion). The shell runs your Alembic migrations against
+      the <code>mod_&lt;name&gt;</code> schema and attaches your permissions
+      to the built-in <code>admin</code> role.
+    </li>
+    <li>
+      <strong>Mount.</strong> Your router is included under
+      <code>/mod/&lt;name&gt;/</code>, your templates dir is prepended to the
+      Jinja loader, your sidebar items appear in the admin UI.
+    </li>
+    <li>
+      <strong>Upgrade.</strong> Ship a new version, bump the Alembic head, run
+      <code>parcel migrate</code> (or the admin endpoint). Your schema
+      migrates; the rest of the shell is undisturbed.
+    </li>
+    <li>
+      <strong>Uninstall.</strong> Soft uninstall flips the row inactive (routes
+      stay mounted until the next restart, that's a FastAPI constraint).
+      <code>?drop_data=true</code> additionally downgrades your migrations and
+      drops your schema.
+    </li>
+  </ol>
+
+  <h2>Schema isolation</h2>
+  <p>
+    Every module owns one Postgres schema. Contacts owns <code>mod_contacts</code>.
+    Your notes module will own <code>mod_notes</code>. The shell owns
+    <code>shell</code>. The <code>public</code> schema is empty by policy. Your
+    Alembic migrations fully qualify the schema in every statement so there's
+    never ambiguity. Cross-schema access is allowed in SQL — nothing stops
+    you joining <code>mod_notes.notes</code> to <code>shell.users</code> if you
+    really want — but you should expose such access through the SDK or a
+    dedicated service function, not a raw SQL join in your router.
+  </p>
+
+  <h2>Entry points, not magic</h2>
+  <p>
+    There is no plugin registry, no config file listing modules, no filesystem
+    scan. The shell uses Python's standard entry-point mechanism to find
+    modules. Your module's <code>pyproject.toml</code> contains:
+  </p>
+  <pre><code>[project.entry-points."parcel.modules"]
+notes = "parcel_mod_notes:module"</code></pre>
+  <p>
+    And that's it. When <code>parcel_mod_notes</code> is importable (via
+    <code>pip install</code> or a <code>uv</code> workspace), the shell sees
+    it. When you <code>pip uninstall</code> it, the shell stops seeing it and
+    flips the installed-module row inactive on next boot.
+  </p>
+
+  <h2>The one-line rule</h2>
+  <p>
+    If you can only remember one thing from this page, make it this:
+  </p>
+  <div class="callout">
+    <strong>Modules import <code>parcel_sdk</code>. Never <code>parcel_shell</code>.</strong>
+    The static-analysis gate enforces this. Your runtime code must follow it;
+    your tests are allowed to bypass it (they're not installed into
+    production, they exercise the shell–module boundary from both sides).
+  </div>
+
+  <div class="tut-pager">
+    <a class="prev" href="./">
+      <span class="label">Previous</span>
+      Tutorial index
+    </a>
+    <a class="next" href="02-scaffold.html">
+      <span class="label">Next</span>
+      02 · Scaffolding with the CLI
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

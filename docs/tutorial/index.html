@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tutorial — Parcel</title>
+<meta name="description" content="A step-by-step tutorial for building Parcel modules. Build a Notes module end-to-end while learning the foundations." />
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="container tut-main">
+  <div class="eyebrow">Build your first module</div>
+  <h1>The Parcel module tutorial</h1>
+  <p class="tut-lede">
+    Every Parcel module — handwritten or AI-generated — is a small, pip-installable
+    Python package that plugs into the shell through a stable SDK. This tutorial
+    walks you through the whole surface, using a <strong>Notes</strong> module
+    as the running example. By the end you will have written a working module
+    that lives at <code>/mod/notes/</code>, passes the static-analysis gate, and
+    installs into a sandbox for review before it ever touches production data.
+  </p>
+
+  <h2>What you'll build</h2>
+  <p>
+    A simple <strong>Notes</strong> module. One entity (note: title, body,
+    timestamp), one sidebar entry, two permissions (<code>notes.read</code>,
+    <code>notes.write</code>), list + create + detail + delete views, and a
+    smoke test. Small enough to read in a sitting, big enough to touch every
+    concept you'll use in real modules.
+  </p>
+  <p>
+    The existing <strong>Contacts</strong> module under
+    <code>modules/contacts/</code> is a larger reference you can grep through
+    after you've worked through the tutorial. The patterns are the same.
+  </p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>A working Parcel checkout with <code>uv sync --all-packages</code> succeeding.</li>
+    <li>Docker running, with Postgres reachable (the quickstart in the <a href="../">main README</a> covers this).</li>
+    <li>A seeded admin user (<code>docker compose run --rm shell bootstrap create-admin …</code>).</li>
+    <li>Comfort with Python 3.12, FastAPI, and SQLAlchemy 2.0 async. You don't need
+      prior SQLAlchemy experience — the model code we write is straightforward —
+      but this tutorial doesn't teach the basics.</li>
+  </ul>
+
+  <h2>Contents</h2>
+  <ul class="tut-toc">
+    <li>
+      <span class="step-num">01</span>
+      <span>
+        <a href="01-foundations.html">Foundations</a>
+        <span class="step-detail">What a Parcel module actually is. Architecture, entry points, the SDK facade, the shell–module boundary.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">02</span>
+      <span>
+        <a href="02-scaffold.html">Scaffolding with the CLI</a>
+        <span class="step-detail">Use <code>parcel new-module notes</code> to generate the skeleton. Walk through every file it creates and why it exists.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">03</span>
+      <span>
+        <a href="03-data.html">Data layer — models and migrations</a>
+        <span class="step-detail">Define the <code>Note</code> entity, bind it to the <code>mod_notes</code> schema, and write the initial Alembic migration.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">04</span>
+      <span>
+        <a href="04-http.html">HTTP layer — router, shell_api, templates</a>
+        <span class="step-detail">Write list / create / detail / delete routes using <code>parcel_sdk.shell_api</code>. No direct shell imports — ever.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">05</span>
+      <span>
+        <a href="05-rbac-sidebar.html">Permissions, sidebar, capabilities</a>
+        <span class="step-detail">Declare <code>notes.read</code> / <code>notes.write</code>, add a sidebar entry, decide whether to declare any capabilities.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">06</span>
+      <span>
+        <a href="06-testing.html">Testing</a>
+        <span class="step-detail">Write a smoke test, a service test, and an HTTP integration test. Tests are allowed to import <code>parcel_shell.*</code> directly.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">07</span>
+      <span>
+        <a href="07-install.html">Installing — the four paths</a>
+        <span class="step-detail">Direct install via the CLI, install via the admin UI, sandbox install (gated), promote from sandbox to real.</span>
+      </span>
+    </li>
+    <li>
+      <span class="step-num">08</span>
+      <span>
+        <a href="08-ai.html">Authoring modules with AI</a>
+        <span class="step-detail">Use <code>/ai</code> to draft a module from a prompt. What the gate will reject, how to word a prompt so it passes first time.</span>
+      </span>
+    </li>
+  </ul>
+
+  <div class="tut-pager">
+    <a class="prev" href="../">
+      <span class="label">Back</span>
+      Parcel home
+    </a>
+    <a class="next" href="01-foundations.html">
+      <span class="label">Start</span>
+      01 · Foundations
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

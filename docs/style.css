@@ -340,3 +340,145 @@ footer.site a:hover { color: var(--fg); }
   margin-right: 0.5rem;
   vertical-align: middle;
 }
+
+/* ── Tutorial ──────────────────────────────────────────────────────────── */
+
+.tut-main {
+  padding: 2.5rem 0 1rem;
+}
+
+.tut-main h1 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5rem;
+  font-weight: 650;
+}
+
+.tut-main h1 .step-num {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: 0.85em;
+  margin-right: 0.4rem;
+}
+
+.tut-main h2 {
+  font-size: 1.3rem;
+  margin: 2rem 0 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  letter-spacing: -0.01em;
+}
+
+.tut-main h3 {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin: 1.75rem 0 0.75rem;
+}
+
+.tut-main p, .tut-main li {
+  color: var(--fg);
+  font-size: 1rem;
+  max-width: 68ch;
+}
+
+.tut-main p.muted { color: var(--fg-dim); }
+
+.tut-lede {
+  font-size: 1.1rem;
+  color: var(--fg-dim);
+  max-width: 62ch;
+  margin: 0 0 2rem;
+}
+
+.tut-toc {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+.tut-toc li {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+.tut-toc .step-num {
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+.tut-toc a { border-bottom: none; color: var(--fg); }
+.tut-toc a:hover { color: var(--accent); }
+.tut-toc .step-detail { color: var(--fg-dim); font-size: 0.92rem; display: block; margin-top: 0.2rem; }
+
+.tut-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+.tut-pager a {
+  flex: 1;
+  max-width: 48%;
+  border: 1px solid var(--rule);
+  background: var(--bg-elev);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  color: var(--fg);
+}
+.tut-pager a:hover { border-color: var(--accent); color: var(--fg); }
+.tut-pager a.prev::before { content: "← "; color: var(--fg-muted); }
+.tut-pager a.next { text-align: right; }
+.tut-pager a.next::after { content: " →"; color: var(--fg-muted); }
+.tut-pager .label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+
+.callout {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+  margin: 1.25rem 0;
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+}
+.callout strong { color: var(--fg); }
+
+.file-tree {
+  background: var(--bg-code);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--fg-dim);
+  margin: 1rem 0;
+}
+.file-tree .hl { color: var(--accent); }
+.file-tree .dim { color: var(--fg-muted); }
+
+.subnav {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.subnav a { color: var(--fg-dim); border-bottom: none; }
+.subnav a:hover { color: var(--accent); }
