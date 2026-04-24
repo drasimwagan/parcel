@@ -99,6 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ui_roles_router)
     app.include_router(ui_modules_router)
 
+    from parcel_shell.sandbox.router_ui import router as ui_sandbox_router
+
+    app.include_router(ui_sandbox_router)
+
     @app.exception_handler(HTMLRedirect)
     async def _html_redirect(request: Request, exc: HTMLRedirect) -> RedirectResponse:
         response = RedirectResponse(url=exc.location, status_code=303)
