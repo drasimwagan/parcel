@@ -45,7 +45,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phase 1 — Shell foundation — complete. Phase 2 (auth + RBAC) up next.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–6 complete: shell, auth + RBAC, module system, admin UI, Contacts demo, SDK facade + <code>parcel</code> CLI. Phase 7 (AI module generator) up next.</div>
   </div>
 </section>
 
@@ -112,32 +112,32 @@
       </li>
       <li>
         <span class="phase-num">2</span>
-        <span class="phase-status next">⏭ next</span>
+        <span class="phase-status done">✓ done</span>
         <span class="phase-goal">Auth + RBAC — users, sessions, Argon2, roles, permissions registry</span>
       </li>
       <li>
         <span class="phase-num">3</span>
-        <span class="phase-status pending">planned</span>
+        <span class="phase-status done">✓ done</span>
         <span class="phase-goal">Module system — manifest spec, entry-point discovery, migration orchestrator, admin module page</span>
       </li>
       <li>
         <span class="phase-num">4</span>
-        <span class="phase-status pending">planned</span>
+        <span class="phase-status done">✓ done</span>
         <span class="phase-goal">Admin UI shell — Jinja base layout, Tailwind, HTMX, dynamic sidebar</span>
       </li>
       <li>
         <span class="phase-num">5</span>
-        <span class="phase-status pending">planned</span>
+        <span class="phase-status done">✓ done</span>
         <span class="phase-goal">Contacts demo module — end-to-end CRM lite</span>
       </li>
       <li>
         <span class="phase-num">6</span>
-        <span class="phase-status pending">planned</span>
-        <span class="phase-goal">SDK polish + <code>parcel</code> CLI</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">SDK polish — <code>parcel_sdk.shell_api</code> facade, <code>parcel</code> CLI (<code>new-module</code>, <code>install</code>, <code>migrate</code>, <code>dev</code>, <code>serve</code>)</span>
       </li>
       <li>
         <span class="phase-num">7</span>
-        <span class="phase-status pending">planned</span>
+        <span class="phase-status next">⏭ next</span>
         <span class="phase-goal">AI module generator — Claude API, static gate, sandbox, preview, approve flow</span>
       </li>
     </ul>
@@ -157,9 +157,13 @@ docker compose up -d shell</code></pre>
     <p style="margin-top: 1.5rem">Smoke-check:</p>
 <pre><code>curl http://localhost:8000/health/live     <span style="color: var(--fg-muted)"># {"status":"ok"}</span>
 curl http://localhost:8000/health/ready    <span style="color: var(--fg-muted)"># {"status":"ok","checks":{"db":"ok","redis":"ok"}}</span></code></pre>
-    <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
+    <p style="margin-top: 1.5rem">Scaffold and install a module with the <code>parcel</code> CLI (Phase 6):</p>
 <pre><code>uv sync --all-packages
-uv run pytest</code></pre>
+uv run parcel new-module widget            <span style="color: var(--fg-muted)"># writes modules/widget/</span>
+uv run parcel install ./modules/widget     <span style="color: var(--fg-muted)"># pip install -e + activate + migrate</span>
+uv run parcel dev                          <span style="color: var(--fg-muted)"># uvicorn with --reload on :8000</span></code></pre>
+    <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
+<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 196 tests, ~40s</span></code></pre>
   </div>
 </section>
 
@@ -173,7 +177,7 @@ uv run pytest</code></pre>
       </div>
       <div class="pillar">
         <h3>Isolation by default</h3>
-        <p>Each module owns its schema. Shell never imports from a module. Modules only share code through <code>parcel-sdk</code>.</p>
+        <p>Each module owns its schema. Shell never imports from a module. Modules only import <code>parcel-sdk</code> — the shell registers its implementation with <code>shell_api.bind()</code> at startup, so the dep direction never inverts.</p>
       </div>
       <div class="pillar">
         <h3>AI is sandboxed</h3>
