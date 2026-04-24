@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>03 · Data layer — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 03 · Data layer
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">03</span> Data layer — models and migrations</h1>
+  <p class="tut-lede">
+    Now we give the Notes module something to store. One entity — a
+    <code>Note</code> with a UUID primary key, a title, a body, and a
+    created-at timestamp. We'll also write the initial Alembic migration that
+    brings the table into existence.
+  </p>
+
+  <h2>The model</h2>
+  <p>
+    Open <code>src/parcel_mod_notes/models.py</code> and replace its contents:
+  </p>
+  <pre><code>from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import MetaData, Text, func
+from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+metadata = MetaData(schema="mod_notes")
+
+
+class NotesBase(DeclarativeBase):
+    metadata = metadata  # type: ignore[assignment]
+
+
+class Note(NotesBase):
+    __tablename__ = "notes"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )</code></pre>
+
+  <div class="callout">
+    <strong>Conventions you're seeing.</strong>
+    <ul style="margin: 0.5rem 0 0;">
+      <li><code>from __future__ import annotations</code> at the top. Always.</li>
+      <li>UUID primary keys, generated server-side by Postgres's <code>gen_random_uuid()</code>. No Python-side UUID generation needed.</li>
+      <li>Timestamptz for every datetime column. Naive datetimes will trip you up in production.</li>
+      <li>Full type hints with <code>Mapped[...]</code> — SQLAlchemy 2.0 style, which <code>pyright</code> understands.</li>
+    </ul>
+  </div>
+
+  <h2>The initial migration</h2>
+  <p>
+    The scaffold already created <code>alembic/versions/0001_init.py</code> with
+    just a <code>CREATE SCHEMA</code>. We'll add the <code>notes</code> table to
+    that same revision (since we haven't installed yet, there's no value in
+    splitting into two revisions). Edit it:
+  </p>
+  <pre><code>"""init notes
+
+Revision ID: 0001_init
+Revises:
+"""
+from __future__ import annotations
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+
+revision = "0001_init"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.execute('CREATE SCHEMA IF NOT EXISTS "mod_notes"')
+    op.create_table(
+        "notes",
+        sa.Column(
+            "id",
+            UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("title", sa.Text(), nullable=False),
+        sa.Column("body", sa.Text(), nullable=False, server_default=sa.text("''")),
+        sa.Column(
+            "created_at",
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        schema="mod_notes",
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("notes", schema="mod_notes")
+    op.execute('DROP SCHEMA IF EXISTS "mod_notes" CASCADE')</code></pre>
+
+  <p>
+    Note the fully-qualified <code>schema="mod_notes"</code> on
+    <code>create_table</code>. Every DDL statement in your migrations should
+    qualify its schema. The sandbox install path depends on this: it mutates
+    your module's <code>metadata.schema</code> in memory to install at
+    <code>mod_sandbox_&lt;uuid&gt;</code>, and ambiguous migrations break.
+  </p>
+
+  <h2>A small service layer</h2>
+  <p>
+    Create <code>src/parcel_mod_notes/service.py</code> — all the database
+    logic your router needs lives here. Routers stay thin, services do the
+    work.
+  </p>
+  <pre><code>from __future__ import annotations
+
+import uuid
+from collections.abc import Sequence
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from parcel_mod_notes.models import Note
+
+
+async def list_notes(db: AsyncSession) -> Sequence[Note]:
+    stmt = select(Note).order_by(Note.created_at.desc())
+    return (await db.execute(stmt)).scalars().all()
+
+
+async def get_note(db: AsyncSession, note_id: uuid.UUID) -> Note | None:
+    return await db.get(Note, note_id)
+
+
+async def create_note(db: AsyncSession, *, title: str, body: str) -> Note:
+    note = Note(title=title.strip(), body=body)
+    db.add(note)
+    await db.flush()
+    return note
+
+
+async def delete_note(db: AsyncSession, *, note: Note) -> None:
+    await db.delete(note)
+    await db.flush()</code></pre>
+  <p>
+    Every service function takes a <code>db: AsyncSession</code> and mutates
+    via <code>db.add</code> / <code>db.delete</code> / <code>db.flush</code>.
+    The caller (your router) is responsible for committing — the shell's
+    <code>get_session()</code> FastAPI dep does that automatically at the end
+    of a successful request, and rolls back on exceptions.
+  </p>
+
+  <h2>Why schema isolation matters</h2>
+  <p>
+    Your tables live in <code>mod_notes</code>. The shell's <code>users</code>,
+    <code>roles</code>, <code>sessions</code> tables live in
+    <code>shell</code>. A different module's tables live in
+    <code>mod_&lt;theirs&gt;</code>. No accidental name collisions — you can
+    have a <code>notes.notes</code> table and another module can have
+    <code>tasks.notes</code>, and they coexist.
+  </p>
+  <p>
+    You also get a clean uninstall story: <code>parcel uninstall notes
+    --drop-data</code> runs your downgrade, drops the schema, and every row is
+    gone. Nothing to chase through <code>public</code>.
+  </p>
+
+  <h2>Verify</h2>
+  <pre><code>uv run pytest modules/notes/</code></pre>
+  <p>
+    The smoke test should still pass — we haven't broken anything. Model code
+    doesn't run until something imports it at request time, so syntax errors
+    in <code>models.py</code> would be silent here. Run the gate to catch
+    them:
+  </p>
+  <pre><code>uv run parcel sandbox install ./modules/notes</code></pre>
+  <p>
+    The sandbox install actually imports your module and runs its migrations.
+    If <code>models.py</code> has a typo, this is where it surfaces. Dismiss
+    the sandbox when you're done (<code>parcel sandbox dismiss &lt;uuid&gt;</code>).
+  </p>
+
+  <div class="tut-pager">
+    <a class="prev" href="02-scaffold.html">
+      <span class="label">Previous</span>
+      02 · Scaffolding
+    </a>
+    <a class="next" href="04-http.html">
+      <span class="label">Next</span>
+      04 · HTTP layer
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

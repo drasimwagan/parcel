@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>06 · Testing — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 06 · Testing
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">06</span> Testing</h1>
+  <p class="tut-lede">
+    Parcel tests run against a real Postgres (via <code>testcontainers</code>),
+    so your service and router tests exercise the same migrations, the same
+    schema, and the same RBAC that production does. Tests are also the one
+    place where you're <em>allowed</em> to import <code>parcel_shell.*</code>
+    directly — the SDK-only constraint is a runtime rule, not a test rule.
+  </p>
+
+  <h2>Three test layers</h2>
+  <ol>
+    <li><strong>Smoke</strong> — imports your module, asserts manifest identity. Already in place from the scaffold.</li>
+    <li><strong>Service</strong> — exercises <code>service.py</code> directly against a real DB session. Fast, focused.</li>
+    <li><strong>Router</strong> — HTTP integration, goes through auth + permissions + templates. Slower, end-to-end.</li>
+  </ol>
+  <p>
+    Start with service tests; they're where most of your real logic lives. Add
+    router tests for the happy-path of each endpoint and for known edge cases.
+  </p>
+
+  <h2>Add parcel-shell as a dev dep</h2>
+  <p>
+    Tests need <code>parcel_shell</code> to boot the app, create users, and so
+    on. Tests are exempt from the SDK-only rule, but you still shouldn't pull
+    <code>parcel-shell</code> into your runtime dependency list. Add it to a
+    dev group in <code>pyproject.toml</code>:
+  </p>
+  <pre><code>[dependency-groups]
+dev = ["parcel-shell"]
+
+[tool.uv.sources]
+parcel-sdk = { workspace = true }
+parcel-shell = { workspace = true }</code></pre>
+  <p>
+    Now <code>uv sync --all-packages</code> makes <code>parcel_shell</code>
+    importable during tests, but a wheel build of your module doesn't pull it
+    in as a runtime requirement.
+  </p>
+
+  <h2>Service tests</h2>
+  <p>
+    Create <code>tests/test_notes_service.py</code>:
+  </p>
+  <pre><code>from __future__ import annotations
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from parcel_mod_notes import service
+from parcel_mod_notes.models import Note
+
+
+@pytest.mark.asyncio
+async def test_create_note_persists(db_session: AsyncSession) -> None:
+    note = await service.create_note(
+        db_session, title="Ideas", body="Some body text"
+    )
+    assert note.id is not None
+    assert note.title == "Ideas"
+
+    reloaded = await db_session.get(Note, note.id)
+    assert reloaded is not None
+    assert reloaded.title == "Ideas"
+
+
+@pytest.mark.asyncio
+async def test_list_notes_ordered_by_created_at(db_session: AsyncSession) -> None:
+    await service.create_note(db_session, title="first", body="")
+    await service.create_note(db_session, title="second", body="")
+    notes = await service.list_notes(db_session)
+    # Newest first.
+    assert [n.title for n in notes[:2]] == ["second", "first"]
+
+
+@pytest.mark.asyncio
+async def test_delete_note_removes_row(db_session: AsyncSession) -> None:
+    note = await service.create_note(db_session, title="gone", body="")
+    await service.delete_note(db_session, note=note)
+    reloaded = await db_session.get(Note, note.id)
+    assert reloaded is None</code></pre>
+
+  <p>
+    <code>db_session</code> is a fixture provided by the workspace's shared
+    test plugin (<code>_shell_fixtures.py</code>). It gives you a real async
+    session wrapped in a savepoint that rolls back at teardown, so each test
+    runs against a clean schema without paying a full migration cost per test.
+  </p>
+
+  <h2>Router tests</h2>
+  <p>
+    Router tests use the <code>committing_admin</code> fixture — an
+    <code>httpx.AsyncClient</code> already logged in as a freshly-created
+    admin. The shell's lifespan is up, your module is mounted, the auth
+    middleware is real.
+  </p>
+  <p>
+    Create <code>tests/test_notes_router.py</code>:
+  </p>
+  <pre><code>from __future__ import annotations
+
+import pytest
+from httpx import AsyncClient
+
+
+@pytest.mark.asyncio
+async def test_list_page_renders(committing_admin: AsyncClient) -> None:
+    r = await committing_admin.get("/mod/notes/")
+    assert r.status_code == 200
+    assert "Notes" in r.text
+    assert "New note" in r.text
+
+
+@pytest.mark.asyncio
+async def test_create_then_detail(committing_admin: AsyncClient) -> None:
+    r = await committing_admin.post(
+        "/mod/notes/",
+        data={"title": "Ideas", "body": "hello"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    detail_url = r.headers["location"]
+    assert detail_url.startswith("/mod/notes/")
+
+    r = await committing_admin.get(detail_url)
+    assert r.status_code == 200
+    assert "Ideas" in r.text
+    assert "hello" in r.text
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_empty_title(committing_admin: AsyncClient) -> None:
+    r = await committing_admin.post(
+        "/mod/notes/", data={"title": "", "body": ""}, follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert r.headers["location"].endswith("/new")
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_note_is_404(committing_admin: AsyncClient) -> None:
+    r = await committing_admin.get(
+        "/mod/notes/00000000-0000-0000-0000-000000000000"
+    )
+    assert r.status_code == 404</code></pre>
+
+  <h2>The gate will check your test code too — no, wait, it won't</h2>
+  <p>
+    A common misconception: because Claude-generated modules go through the
+    static gate, and the gate scans <code>.py</code> files, surely tests are
+    scanned too? They're not. <code>parcel_gate.runner</code> explicitly skips
+    <code>tests/</code>, <code>__pycache__/</code>, <code>.venv/</code>, and
+    similar directories. Your tests can <code>import httpx</code>,
+    <code>from parcel_shell.something import thing</code>, use
+    <code>sqlalchemy.text(...)</code> — none of that matters for gate
+    verdicts. The gate is a runtime-code safety check.
+  </p>
+
+  <h2>Run them</h2>
+  <pre><code>uv run pytest modules/notes/ -v</code></pre>
+  <p>
+    On first run, <code>testcontainers</code> pulls a Postgres image (~100 MB
+    one-time) and spins up a fresh container. Subsequent runs reuse it.
+    Expect ~5-10s startup for the first test, then fast.
+  </p>
+
+  <h2>Lint + type-check</h2>
+  <pre><code>uv run ruff format
+uv run ruff check
+uv run pyright</code></pre>
+  <p>
+    All three should pass. Modules are included in the root pyright config at
+    basic-check level; the shell and SDK run at strict. If you introduce a new
+    Python dep, add it to <code>pyproject.toml</code> and <code>uv sync
+    --all-packages</code> again.
+  </p>
+
+  <div class="callout">
+    <strong>When tests fail but the sandbox passes (or vice versa):</strong>
+    they're checking different things. Tests exercise your logic against a
+    real DB. The sandbox install exercises the gate, your migrations, your
+    router mounting. Run both on every meaningful change.
+  </div>
+
+  <div class="tut-pager">
+    <a class="prev" href="05-rbac-sidebar.html">
+      <span class="label">Previous</span>
+      05 · Permissions and sidebar
+    </a>
+    <a class="next" href="07-install.html">
+      <span class="label">Next</span>
+      07 · Installing
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

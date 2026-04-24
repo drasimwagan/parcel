@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>04 · HTTP layer — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 04 · HTTP layer
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">04</span> HTTP layer — router, shell_api, templates</h1>
+  <p class="tut-lede">
+    Time to write real routes. We'll add list, create, detail, and delete
+    handlers to the Notes module, each one mediated by the SDK's
+    <code>shell_api</code> facade. This is where the discipline of "modules
+    import <code>parcel_sdk</code>, never <code>parcel_shell</code>" starts
+    showing its teeth.
+  </p>
+
+  <h2>The shell_api facade — one page of reference</h2>
+  <p>Every function your router will call, in one list:</p>
+  <ul>
+    <li>
+      <code>shell_api.get_session()</code> — returns the FastAPI dep that
+      yields an <code>AsyncSession</code>. Use inside <code>Depends(...)</code>.
+      Commits on successful completion, rolls back on exception. You never call
+      <code>db.commit()</code> yourself in a handler.
+    </li>
+    <li>
+      <code>shell_api.require_permission(name)</code> — returns a
+      FastAPI dep that (a) requires an authenticated user and (b) enforces the
+      named permission. On unauthenticated → 303 to <code>/login?next=…</code>.
+      On missing permission → 303 to <code>/</code> with an error flash.
+    </li>
+    <li>
+      <code>shell_api.effective_permissions(request, user)</code> — returns
+      the full set of permission names the user currently has. You use this
+      to filter the composed sidebar.
+    </li>
+    <li>
+      <code>shell_api.get_templates()</code> — returns the shared
+      <code>Jinja2Templates</code>. Your module's <code>templates_dir</code>
+      was prepended to the loader when you were installed, so you reference
+      templates by their path under your dir (<code>"notes/index.html"</code>).
+    </li>
+    <li>
+      <code>shell_api.sidebar_for(request, perms)</code> — returns the
+      composed sidebar (shell sections + every active module's section)
+      filtered by the user's perms. Pass to your template context.
+    </li>
+    <li>
+      <code>shell_api.set_flash(response, flash)</code> — attach a one-shot
+      banner to the next page render. <code>flash</code> is a
+      <code>Flash(kind, msg)</code> where <code>kind</code> is
+      <code>"success"</code>, <code>"error"</code>, or <code>"info"</code>.
+    </li>
+  </ul>
+
+  <h2>A shared context helper</h2>
+  <p>
+    Every HTML route needs the same four keys for the base template:
+    <code>user</code>, <code>sidebar</code>, <code>active_path</code>,
+    <code>settings</code>. Factor this into a small helper at the top of
+    <code>router.py</code>:
+  </p>
+  <pre><code>async def _ctx(request: Request, user: Any, path: str) -> dict[str, Any]:
+    perms = await shell_api.effective_permissions(request, user)
+    return {
+        "user": user,
+        "sidebar": shell_api.sidebar_for(request, perms),
+        "active_path": path,
+        "settings": request.app.state.settings,
+    }</code></pre>
+
+  <h2>The full router</h2>
+  <p>
+    Replace <code>src/parcel_mod_notes/router.py</code>:
+  </p>
+  <pre><code>from __future__ import annotations
+
+import uuid
+from typing import Any
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import HTMLResponse, RedirectResponse
+
+from parcel_mod_notes import service
+from parcel_sdk import shell_api
+from parcel_sdk.shell_api import Flash
+
+router = APIRouter(tags=["mod-notes"])
+
+
+async def _ctx(request: Request, user: Any, path: str) -> dict[str, Any]:
+    perms = await shell_api.effective_permissions(request, user)
+    return {
+        "user": user,
+        "sidebar": shell_api.sidebar_for(request, perms),
+        "active_path": path,
+        "settings": request.app.state.settings,
+    }
+
+
+@router.get("/", response_class=HTMLResponse)
+async def notes_list(
+    request: Request,
+    user: Any = Depends(shell_api.require_permission("notes.read")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+) -> Response:
+    notes = await service.list_notes(db)
+    tpl = shell_api.get_templates()
+    return tpl.TemplateResponse(
+        request,
+        "notes/list.html",
+        {**(await _ctx(request, user, "/mod/notes")), "notes": notes},
+    )
+
+
+@router.get("/new", response_class=HTMLResponse)
+async def notes_new_form(
+    request: Request,
+    user: Any = Depends(shell_api.require_permission("notes.write")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+) -> Response:
+    tpl = shell_api.get_templates()
+    return tpl.TemplateResponse(
+        request,
+        "notes/new.html",
+        await _ctx(request, user, "/mod/notes"),
+    )
+
+
+@router.post("/")
+async def notes_create(
+    request: Request,
+    title: str = Form(...),
+    body: str = Form(""),
+    user: Any = Depends(shell_api.require_permission("notes.write")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+) -> Response:
+    if not title.strip():
+        response = RedirectResponse(url="/mod/notes/new", status_code=303)
+        shell_api.set_flash(response, Flash(kind="error", msg="Title is required."))
+        return response
+    note = await service.create_note(db, title=title, body=body)
+    response = RedirectResponse(url=f"/mod/notes/{note.id}", status_code=303)
+    shell_api.set_flash(response, Flash(kind="success", msg="Note created."))
+    return response
+
+
+@router.get("/{note_id}", response_class=HTMLResponse)
+async def notes_detail(
+    note_id: uuid.UUID,
+    request: Request,
+    user: Any = Depends(shell_api.require_permission("notes.read")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+) -> Response:
+    note = await service.get_note(db, note_id)
+    if note is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "note_not_found")
+    tpl = shell_api.get_templates()
+    return tpl.TemplateResponse(
+        request,
+        "notes/detail.html",
+        {**(await _ctx(request, user, "/mod/notes")), "note": note},
+    )
+
+
+@router.post("/{note_id}/delete")
+async def notes_delete(
+    note_id: uuid.UUID,
+    request: Request,
+    user: Any = Depends(shell_api.require_permission("notes.write")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+) -> Response:
+    note = await service.get_note(db, note_id)
+    if note is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "note_not_found")
+    await service.delete_note(db, note=note)
+    response = RedirectResponse(url="/mod/notes/", status_code=303)
+    shell_api.set_flash(response, Flash(kind="info", msg="Note deleted."))
+    return response</code></pre>
+
+  <p>
+    Five handlers, no shell imports, no raw SQL. Every HTTP concern — auth,
+    permissions, database sessions, templates, flashes — goes through the
+    facade. If you ever find yourself tempted to <code>from parcel_shell import
+    something</code>, stop. Either the thing you need belongs in your own
+    module's service layer, or it belongs in a future expansion of the SDK.
+  </p>
+
+  <h2>The templates</h2>
+  <p>
+    Three new Jinja templates under
+    <code>src/parcel_mod_notes/templates/notes/</code>. First, replace the
+    scaffolded <code>index.html</code> with <code>list.html</code>:
+  </p>
+
+  <h3>templates/notes/list.html</h3>
+  <pre><code>{% extends "_base.html" %}
+{% block title %}Notes — Parcel{% endblock %}
+{% block content %}
+&lt;div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;"&gt;
+  &lt;h2 style="margin: 0;"&gt;Notes&lt;/h2&gt;
+  &lt;a class="btn primary" href="/mod/notes/new"&gt;+ New note&lt;/a&gt;
+&lt;/div&gt;
+
+&lt;table class="table"&gt;
+  &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Title&lt;/th&gt;&lt;th&gt;Created&lt;/th&gt;&lt;th&gt;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+  &lt;tbody&gt;
+    {% for n in notes %}
+    &lt;tr&gt;
+      &lt;td&gt;&lt;a href="/mod/notes/{{ n.id }}"&gt;{{ n.title }}&lt;/a&gt;&lt;/td&gt;
+      &lt;td class="muted"&gt;{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}&lt;/td&gt;
+      &lt;td style="text-align:right;"&gt;
+        &lt;a class="btn" href="/mod/notes/{{ n.id }}"&gt;Open →&lt;/a&gt;
+      &lt;/td&gt;
+    &lt;/tr&gt;
+    {% else %}
+    &lt;tr&gt;&lt;td colspan="3" class="muted" style="text-align:center;"&gt;No notes yet.&lt;/td&gt;&lt;/tr&gt;
+    {% endfor %}
+  &lt;/tbody&gt;
+&lt;/table&gt;
+{% endblock %}</code></pre>
+
+  <h3>templates/notes/new.html</h3>
+  <pre><code>{% extends "_base.html" %}
+{% block title %}New note — Parcel{% endblock %}
+{% block content %}
+&lt;h2 style="margin: 0 0 16px;"&gt;New note&lt;/h2&gt;
+&lt;form method="post" action="/mod/notes/" class="stack"&gt;
+  &lt;label&gt;
+    &lt;div style="margin-bottom:4px;"&gt;Title&lt;/div&gt;
+    &lt;input type="text" name="title" required style="width: 100%;"&gt;
+  &lt;/label&gt;
+  &lt;label&gt;
+    &lt;div style="margin-bottom:4px;"&gt;Body&lt;/div&gt;
+    &lt;textarea name="body" rows="8" style="width: 100%;"&gt;&lt;/textarea&gt;
+  &lt;/label&gt;
+  &lt;div&gt;
+    &lt;button type="submit" class="btn primary"&gt;Save&lt;/button&gt;
+    &lt;a class="btn" href="/mod/notes/"&gt;Cancel&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/form&gt;
+{% endblock %}</code></pre>
+
+  <h3>templates/notes/detail.html</h3>
+  <pre><code>{% extends "_base.html" %}
+{% block title %}{{ note.title }} — Parcel{% endblock %}
+{% block content %}
+&lt;div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;"&gt;
+  &lt;h2 style="margin: 0;"&gt;{{ note.title }}&lt;/h2&gt;
+  &lt;a class="btn" href="/mod/notes/"&gt;← All notes&lt;/a&gt;
+&lt;/div&gt;
+
+&lt;p class="muted"&gt;Created {{ note.created_at.strftime('%Y-%m-%d %H:%M UTC') }}&lt;/p&gt;
+&lt;pre style="white-space: pre-wrap; background: transparent; border: none; padding: 0; font-family: inherit;"&gt;{{ note.body }}&lt;/pre&gt;
+
+&lt;form method="post" action="/mod/notes/{{ note.id }}/delete" style="margin-top: 24px;"&gt;
+  &lt;button type="submit" class="btn danger"&gt;Delete&lt;/button&gt;
+&lt;/form&gt;
+{% endblock %}</code></pre>
+
+  <div class="callout">
+    <strong>Why the odd HTML escaping above?</strong> The tutorial pages are
+    themselves HTML, so Jinja syntax needs to be shown as entities. The files
+    you actually write use real angle brackets. Look at
+    <code>modules/contacts/src/parcel_mod_contacts/templates/contacts/</code>
+    in the repo for unescaped examples.
+  </div>
+
+  <h2>Route-order note</h2>
+  <p>
+    FastAPI matches routes in declaration order. If you later add a
+    <code>/{note_id}</code> route using a UUID type converter, and then a
+    literal-path route like <code>/archive</code>, the UUID route will return
+    422 for any non-UUID path that reaches it first. <strong>Declare literal
+    paths before parameterised paths</strong>, or use path-prefix guards like
+    <code>/notes/{note_id}</code>. This bit us in the Contacts module — see
+    the comment in <code>modules/contacts/src/parcel_mod_contacts/router.py</code>.
+  </p>
+
+  <h2>Verify</h2>
+  <pre><code>uv run pytest modules/notes/
+uv run parcel sandbox install ./modules/notes</code></pre>
+  <p>
+    The smoke test still passes, and the sandbox install goes through. Next
+    step: we'll wire up permissions and a sidebar entry so the module is
+    actually reachable from the admin UI.
+  </p>
+
+  <div class="tut-pager">
+    <a class="prev" href="03-data.html">
+      <span class="label">Previous</span>
+      03 · Data layer
+    </a>
+    <a class="next" href="05-rbac-sidebar.html">
+      <span class="label">Next</span>
+      05 · Permissions and sidebar
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

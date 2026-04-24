@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>08 · AI-authored modules — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 08 · AI-authored modules
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">08</span> Authoring modules with AI</h1>
+  <p class="tut-lede">
+    You've just written a Notes module by hand. Now try the other path —
+    describe what you want at <code>/ai</code> and have Claude draft it for
+    you. The generator is bound by the same rules you just followed: modules
+    import only <code>parcel_sdk</code>, the static gate enforces it, and
+    anything that slips past the AI lands in a sandbox for your inspection.
+  </p>
+
+  <h2>Prerequisites</h2>
+  <p>
+    Your shell needs an AI provider configured. The default is
+    <code>PARCEL_AI_PROVIDER=api</code>, which requires
+    <code>ANTHROPIC_API_KEY</code> in your environment (or <code>.env</code>).
+    Alternatively, set <code>PARCEL_AI_PROVIDER=cli</code> and ensure the
+    Claude Code CLI is on your PATH.
+  </p>
+  <p>
+    Without either, the generator endpoint returns 503 and the chat UI shows a
+    "provider not configured" banner. The shell still boots — the AI piece is
+    optional infrastructure.
+  </p>
+
+  <h2>Open the chat surface</h2>
+  <ol>
+    <li>Log into the admin UI.</li>
+    <li>Click "Generator" in the "AI Lab" section of the sidebar (or visit <code>/ai</code>).</li>
+    <li>Click "+ New session".</li>
+    <li>Type a prompt. Hit Send.</li>
+  </ol>
+  <p>
+    The page shows a spinner while a background task runs the generator.
+    HTMX polls every second; when the task finishes the page updates
+    automatically. Typical generation takes 30-90 seconds.
+  </p>
+
+  <h2>Anatomy of a turn</h2>
+  <p>A single "turn" is one prompt → one module attempt:</p>
+  <ol>
+    <li>Your prompt is sent to the configured <code>ClaudeProvider</code> (API or CLI) with the system prompt that ships in the repo at <code>packages/parcel-shell/src/parcel_shell/ai/prompts/generate_module.md</code>.</li>
+    <li>Claude emits a series of <code>write_file(path, content)</code> tool calls followed by one <code>submit_module()</code>. The API provider validates every path (no absolute paths, no <code>..</code>, no <code>.sh</code>/<code>.exe</code>, 64 KiB per file, 1 MiB total).</li>
+    <li>The shell zips the files and hands them to <code>create_sandbox</code> — the same Phase 7a pipeline you used manually.</li>
+    <li>If the gate passes, you get a sandbox row with a green card and a link to try it live.</li>
+    <li>If the gate rejects, the shell retries <em>once</em> with the gate report attached as context ("your last attempt failed — here's what went wrong"). If the second attempt still fails, the turn is marked <code>exceeded_retries</code> and the gate report is shown on the card.</li>
+  </ol>
+
+  <h2>Prompts that pass first time</h2>
+  <p>
+    The system prompt is opinionated — it tells Claude exactly what files to
+    emit, which imports are allowed, which calls are hard-blocked, and how to
+    declare capabilities. Your job is to describe the <em>business logic</em>:
+    what the module tracks, what the user can do with it, what
+    permissions/views make sense. Don't tell Claude which Python packages to
+    use — the system prompt handles that.
+  </p>
+
+  <p>Good prompt:</p>
+  <pre><code>Track invoices. An invoice has a number (string), an amount (decimal), an issued date, and a paid status. Users can list invoices, create them, and mark them paid. Two permissions: invoices.read and invoices.write.</code></pre>
+
+  <p>Bad prompt (too much Python specifics, Claude will get confused):</p>
+  <pre><code>Use SQLAlchemy to make a table with httpx and pandas for data analysis...</code></pre>
+
+  <p>Also bad (too vague):</p>
+  <pre><code>Make an invoice module.</code></pre>
+
+  <p>
+    The sweet spot: describe the entity, its fields, the user-visible
+    operations, and the permission shape. Claude fills in the rest.
+  </p>
+
+  <h2>When the gate rejects</h2>
+  <p>
+    Click the turn's "Gate report" disclosure to see exactly which rule
+    flagged which file and line. The most common rejections:
+  </p>
+  <ul>
+    <li>
+      <strong><code>ast.blocked_import.os</code></strong> — Claude reached for
+      <code>os.path.join</code>. Use <code>pathlib.Path</code> instead, or
+      declare <code>capabilities=("filesystem",)</code> if you genuinely need
+      filesystem access.
+    </li>
+    <li>
+      <strong><code>ast.forbidden_package.parcel_shell</code></strong> — Claude
+      imported from <code>parcel_shell.*</code>. Re-prompt reminding it to use
+      <code>parcel_sdk.shell_api</code>.
+    </li>
+    <li>
+      <strong><code>ast.raw_sql</code></strong> — Claude used
+      <code>sqlalchemy.text(...)</code>. Either rewrite with the ORM or declare
+      <code>capabilities=("raw_sql",)</code> and re-prompt.
+    </li>
+    <li>
+      <strong><code>ast.unknown_package</code></strong> (warning) — an
+      imported top-level package isn't on the allow-list. Usually safe to
+      ignore; if it's a real dep you want, add it manually after the sandbox
+      lands and re-run the gate via <code>parcel sandbox install</code>.
+    </li>
+  </ul>
+
+  <h2>Iterating within a session</h2>
+  <p>
+    Each turn is an <strong>independent generation</strong>. Claude doesn't
+    see prior turns in this session when drafting the next one — the
+    "conversation" is a UX pattern, not a model-context pattern. So if your
+    second prompt is "same as before but add a due_date field", Claude will
+    interpret that as the entire spec and might drop fields from the first
+    attempt.
+  </p>
+  <p>
+    Two alternative patterns:
+  </p>
+  <ul>
+    <li><strong>Promote the good turn.</strong> Inspect the sandbox, promote
+      it to a real install, then edit the promoted module by hand to add the
+      extra field. You get AI-drafted scaffolding + human-controlled
+      iteration.</li>
+    <li><strong>Re-prompt fully.</strong> "Track invoices. An invoice has a
+      number, amount, issued date, due date, and paid status..." — repeat the
+      entire spec. Each turn becomes its own standalone generation.</li>
+  </ul>
+
+  <h2>When to use the generator</h2>
+  <ul>
+    <li>
+      <strong>Greenfield modules</strong> with straightforward CRUD. Claude is
+      good at producing the scaffold + a working first pass for simple
+      entities.
+    </li>
+    <li>
+      <strong>Exploratory prototypes.</strong> "What would a tasks module look
+      like?" can be answered in two minutes instead of twenty.
+    </li>
+    <li>
+      <strong>Onboarding new entity fields.</strong> Not yet supported
+      programmatically, but a workable pattern today: promote the draft,
+      write tests for it, then hand-edit.
+    </li>
+  </ul>
+  <p>
+    The generator is <strong>not</strong> a replacement for hand-written
+    modules when you care about precise UX, complex business rules, or
+    specific performance characteristics. It's a scaffolding tool that
+    produces something that passes the gate; the human-in-the-loop review at
+    the sandbox stage is load-bearing, not a rubber stamp.
+  </p>
+
+  <h2>Promoting an AI draft</h2>
+  <p>
+    Exactly the same as Path 3 in the previous step. Inspect at
+    <code>/sandbox/&lt;uuid&gt;</code>, try it live at
+    <code>/mod-sandbox/&lt;short-uuid&gt;/</code>, then either:
+  </p>
+  <pre><code># via CLI
+uv run parcel sandbox promote &lt;uuid&gt; invoices
+
+# or via the admin UI
+# /sandbox/&lt;uuid&gt; → fill the promote form → Submit</code></pre>
+
+  <p>
+    Either way the capability-approval check runs: you're re-confirming what
+    Claude declared, and the install fails cleanly if the two don't match.
+  </p>
+
+  <h2>Where to go from here</h2>
+  <p>
+    You now know every piece of the module surface:
+  </p>
+  <ul>
+    <li>Foundations + architecture</li>
+    <li>CLI scaffolding</li>
+    <li>Data layer (models + migrations)</li>
+    <li>HTTP layer (router + shell_api + templates)</li>
+    <li>Permissions, sidebar, capabilities</li>
+    <li>Testing</li>
+    <li>Installing (4 paths)</li>
+    <li>AI authoring</li>
+  </ul>
+  <p>
+    Good next steps:
+  </p>
+  <ul>
+    <li>Read <code>modules/contacts/</code> end-to-end to see the patterns at a slightly larger scale.</li>
+    <li>Read <code>packages/parcel-sdk/src/parcel_sdk/shell_api.py</code> — it's one file, 120 lines. Every line is a contract.</li>
+    <li>Read the Phase 6 spec at <code>docs/superpowers/specs/2026-04-23-phase-6-sdk-cli-design.md</code> for the rationale behind the facade.</li>
+    <li>Write a module of your own. Ship it.</li>
+  </ul>
+
+  <div class="tut-pager">
+    <a class="prev" href="07-install.html">
+      <span class="label">Previous</span>
+      07 · Installing
+    </a>
+    <a class="next" href="./">
+      <span class="label">Done</span>
+      Back to the tutorial index
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

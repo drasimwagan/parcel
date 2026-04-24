@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>07 · Installing — Parcel tutorial</title>
+<meta name="color-scheme" content="dark light" />
+<link rel="stylesheet" href="../style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%23d7b85c'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <a class="brand" href="../">parcel</a>
+    <nav class="top-nav">
+      <a href="../">Home</a>
+      <a href="./">Tutorial</a>
+      <a href="https://github.com/drasimwagan/parcel">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container subnav">
+  <a href="./">Tutorial</a> · 07 · Installing
+</div>
+
+<main>
+<section class="container tut-main">
+  <h1><span class="step-num">07</span> Installing — the four paths</h1>
+  <p class="tut-lede">
+    There are four ways a Parcel module can be installed, depending on whether
+    you trust the source and whether you want to try it before promoting it
+    to real. Understanding when to use which is the difference between a
+    comfortable dev loop and a risky one.
+  </p>
+
+  <h2>The four paths at a glance</h2>
+  <table class="table" style="width:100%; margin-top: 1rem;">
+    <thead><tr><th>Path</th><th>Gate?</th><th>Schema</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><code>parcel install &lt;path&gt;</code></td><td>No</td><td>Real <code>mod_&lt;name&gt;</code></td><td>Your own code. Fast dev loop.</td></tr>
+      <tr><td><code>POST /admin/modules/install</code></td><td>No</td><td>Real <code>mod_&lt;name&gt;</code></td><td>Admin-initiated, already-discovered modules.</td></tr>
+      <tr><td><code>parcel sandbox install &lt;path&gt;</code></td><td>Yes</td><td>Sandbox <code>mod_sandbox_&lt;uuid&gt;</code></td><td>Candidates you want to review before promoting.</td></tr>
+      <tr><td><code>/ai</code> chat + gate + sandbox</td><td>Yes</td><td>Sandbox <code>mod_sandbox_&lt;uuid&gt;</code></td><td>AI-authored modules. Promote only after inspection.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Path 1 — Direct CLI install</h2>
+  <pre><code>uv run parcel install ./modules/notes</code></pre>
+  <p>
+    The CLI <code>uv pip install -e</code>'s your module into the active
+    venv, boots the shell in-process (via <code>asgi-lifespan</code>'s
+    <code>LifespanManager</code>), discovers your module by entry point, and
+    calls the same <code>install_module</code> service function that the
+    admin HTTP endpoint uses. No gate, no sandbox — you authored the code, you
+    trust it.
+  </p>
+  <p>
+    Ideal iteration loop:
+  </p>
+  <pre><code>uv run parcel new-module widgets
+# … edit files …
+uv run parcel install ./modules/widgets       # real install
+# … edit more files, bump version in pyproject.toml and module.py …
+uv run parcel migrate --module widgets        # pick up new migration</code></pre>
+
+  <h2>Path 2 — Admin UI</h2>
+  <p>
+    Modules discovered on the shell (i.e., <code>pip install</code>ed and
+    therefore visible via entry points) show up at <code>/modules</code> in
+    the admin UI with an "available" pill. Click through to the detail page
+    and hit "Install". You get a form to approve each declared capability
+    (empty for Notes), then submit. Same underlying code path as
+    <code>parcel install</code>.
+  </p>
+
+  <h2>Path 3 — Sandbox install</h2>
+  <pre><code>uv run parcel sandbox install ./modules/notes</code></pre>
+  <p>
+    Same lifecycle, but routed through <code>parcel_shell.sandbox.service.create_sandbox</code>:
+  </p>
+  <ol>
+    <li>Your source is extracted to <code>var/sandbox/&lt;uuid&gt;/</code>.</li>
+    <li>The manifest is parsed (enough to read the declared capabilities; the module itself is <em>not</em> imported yet).</li>
+    <li><code>parcel-gate</code> runs: ruff + bandit + AST policy. Tests and caches are skipped — the gate examines runtime code only.</li>
+    <li>On pass: a throwaway schema <code>mod_sandbox_&lt;short-uuid&gt;</code> is created, your migrations run against it (with <code>metadata.schema</code> patched in memory), your module is loaded via <code>importlib.util</code> under a unique <code>sys.modules</code> name so two sandboxes of the same module can coexist, and your router mounts at <code>/mod-sandbox/&lt;short-uuid&gt;/</code>.</li>
+    <li>A row is written to <code>shell.sandbox_installs</code>, visible at <code>/sandbox</code> in the admin UI.</li>
+  </ol>
+  <p>
+    The sandbox has a 7-day TTL. Run <code>parcel sandbox prune</code>
+    periodically to dismiss expired sandboxes.
+  </p>
+
+  <h3>Promoting a sandbox to real</h3>
+  <pre><code>uv run parcel sandbox promote &lt;uuid&gt; notes_v2 -c network</code></pre>
+  <p>
+    Promote does three things: (1) copies the sandbox files to
+    <code>modules/notes_v2/</code> and rewrites package-name references if the
+    target name differs from the sandbox's, (2) <code>uv pip install -e</code>'s
+    the target, (3) runs the real install path against the approved
+    capabilities. The sandbox is dismissed after a successful promote.
+  </p>
+  <p>
+    Capabilities approved at promote (<code>-c network</code> above) must
+    <strong>exactly equal</strong> the module's declared capabilities — not a
+    subset, not a superset. This guards against "I saw network declared but
+    I'll pretend I didn't" bugs.
+  </p>
+
+  <h3>Dismissing a sandbox</h3>
+  <pre><code>uv run parcel sandbox dismiss &lt;uuid&gt;</code></pre>
+  <p>
+    Drops the sandbox schema, removes the files, marks the row dismissed
+    (kept for audit). The router stays mounted until the next shell restart
+    (FastAPI limitation) but every request 500s because the schema is gone —
+    acceptable for the lifespan of a single dev session.
+  </p>
+
+  <h2>Path 4 — AI-authored via <code>/ai</code></h2>
+  <p>
+    Covered in the next step. The short version: describe what you want in
+    plain language; the generator drafts a module; the draft goes through
+    the gate; if it passes, it lands as a sandbox install. From there it's
+    Path 3 — inspect, promote, or dismiss.
+  </p>
+
+  <h2>Upgrades</h2>
+  <p>
+    Bump your <code>Module(version=...)</code>, add a new Alembic revision,
+    <code>uv sync --all-packages</code>, then:
+  </p>
+  <pre><code>uv run parcel migrate --module notes</code></pre>
+  <p>
+    Migration-head is stored on the installed-module row, so re-running
+    <code>migrate</code> without a new revision is a no-op. The per-module
+    Alembic version table lives inside your schema
+    (<code>mod_notes.alembic_version</code>), so you can downgrade past the
+    shell baseline cleanly.
+  </p>
+
+  <h2>Uninstall</h2>
+  <pre><code># Soft — flip is_active=false, keep data
+curl -b cookies.txt -X POST http://localhost:8000/admin/modules/notes/uninstall
+
+# Hard — downgrade + drop schema
+curl -b cookies.txt -X POST 'http://localhost:8000/admin/modules/notes/uninstall?drop_data=true'</code></pre>
+  <p>
+    Soft uninstall is idempotent and safe — the next shell boot just skips
+    mounting the module. <code>?drop_data=true</code> is a last-resort; it
+    runs your <code>downgrade()</code>, drops the schema, removes the
+    installed-module row. There is no built-in undo.
+  </p>
+
+  <h2>Docker-compose production deploy</h2>
+  <pre><code>docker compose up -d postgres redis
+docker compose run --rm shell migrate      # shell schema only
+docker compose up -d shell
+
+# From outside the container, while shell is up:
+uv run parcel install &lt;git-url-of-your-module&gt;
+uv run parcel migrate --module &lt;name&gt;</code></pre>
+  <p>
+    In production you'll typically install modules from Git URLs via
+    <code>uv pip install</code>. The CLI's <code>install</code> accepts a Git
+    URL directly when the source argument isn't a local path.
+  </p>
+
+  <div class="tut-pager">
+    <a class="prev" href="06-testing.html">
+      <span class="label">Previous</span>
+      06 · Testing
+    </a>
+    <a class="next" href="08-ai.html">
+      <span class="label">Next</span>
+      08 · AI-authored modules
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div>Parcel · <a href="https://github.com/drasimwagan/parcel/blob/main/LICENSE">MIT</a></div>
+    <div>
+      <a href="https://github.com/drasimwagan/parcel">Source</a> ·
+      <a href="../">Home</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
