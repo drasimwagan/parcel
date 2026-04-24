@@ -69,10 +69,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async with sessionmaker() as s:
             await mount_sandbox_on_boot(s, app)
 
+        from parcel_shell.ai.chat import service as chat_service
+
+        async with sessionmaker() as s:
+            swept = await chat_service.sweep_orphans(s)
+            await s.commit()
+            if swept:
+                log.warning("ai.chat.orphans_swept", count=swept)
+
+        app.state.ai_tasks = set()
+
         log.info("shell.startup", env=settings.env)
         try:
             yield
         finally:
+            import asyncio as _asyncio
+
+            tasks = list(getattr(app.state, "ai_tasks", set()))
+            for t in tasks:
+                t.cancel()
+            if tasks:
+                await _asyncio.gather(*tasks, return_exceptions=True)
             await app.state.redis.aclose()
             await engine.dispose()
             log.info("shell.shutdown")
@@ -114,6 +131,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from parcel_shell.sandbox.router_ui import router as ui_sandbox_router
 
     app.include_router(ui_sandbox_router)
+
+    from parcel_shell.ai.chat.router_ui import router as ai_chat_ui_router
+
+    app.include_router(ai_chat_ui_router)
 
     @app.exception_handler(HTMLRedirect)
     async def _html_redirect(request: Request, exc: HTMLRedirect) -> RedirectResponse:

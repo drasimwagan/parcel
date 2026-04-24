@@ -1,0 +1,40 @@
+{% extends "_base.html" %}
+{% block title %}{{ session.title }} — AI Generator — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+  <h2 style="margin: 0;">{{ session.title }}</h2>
+  <a class="btn" href="/ai">← All sessions</a>
+</div>
+
+{% if not provider_configured %}
+<p style="border:1px solid #c00; background:#fff0f0; padding:12px; border-radius:6px;">
+  <strong>AI provider not configured.</strong> Set <code>ANTHROPIC_API_KEY</code> in
+  your environment (or <code>PARCEL_AI_PROVIDER=cli</code> with the
+  <code>claude</code> binary on PATH) and restart the shell before submitting turns.
+</p>
+{% endif %}
+
+{% include "ai/_turns.html" %}
+
+<form method="post" action="/ai/sessions/{{ session.id }}/turns" class="stack" style="margin-top: 24px;">
+  <label>
+    <div style="margin-bottom:4px;"><strong>Prompt</strong></div>
+    <textarea name="prompt" rows="4" required
+              {% if polling %}disabled{% endif %}
+              placeholder="Describe the module you want. E.g., 'Track invoices with number, amount, date, and a paid status.'"
+              style="width: 100%;"></textarea>
+  </label>
+  <div>
+    <button type="submit" class="btn primary" {% if polling %}disabled{% endif %}>
+      {% if polling %}Generating…{% else %}Send{% endif %}
+    </button>
+    <span class="muted">
+      {% if polling %}
+      A turn is generating. The page will update automatically.
+      {% else %}
+      Each turn is independent — start a new session if you want to change direction.
+      {% endif %}
+    </span>
+  </div>
+</form>
+{% endblock %}

@@ -41,7 +41,10 @@ SIDEBAR: tuple[SidebarSection, ...] = (
     ),
     SidebarSection(
         label="AI Lab",
-        items=(SidebarItem(label="Sandbox", href="/sandbox", permission="sandbox.read"),),
+        items=(
+            SidebarItem(label="Generator", href="/ai", permission="ai.generate"),
+            SidebarItem(label="Sandbox", href="/sandbox", permission="sandbox.read"),
+        ),
     ),
 )
 

@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% block title %}AI Generator — Parcel{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+  <h2 style="margin: 0;">AI Generator</h2>
+  <form method="post" action="/ai/sessions" style="margin:0;">
+    <button type="submit" class="btn primary">+ New session</button>
+  </form>
+</div>
+
+<p class="muted" style="max-width: 60ch;">
+  Describe a module in plain language. The generator drafts it, runs it
+  through the static gate, and installs it into a sandbox where you can try
+  it before promoting to a real install.
+</p>
+
+<table class="table">
+  <thead>
+    <tr><th>Title</th><th>Turns</th><th>Last activity</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for s in sessions %}
+    <tr>
+      <td><a href="/ai/sessions/{{ s.id }}">{{ s.title }}</a></td>
+      <td>{{ turn_counts.get(s.id, 0) }}</td>
+      <td class="muted">{{ s.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td style="text-align:right;">
+        <a class="btn" href="/ai/sessions/{{ s.id }}">Open →</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted" style="text-align:center;">No sessions yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
