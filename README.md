@@ -2,7 +2,7 @@
 
 > AI-native, modular business-application platform. Describe a need, get a working module.
 
-**Status:** Pre-alpha. Phases 1–6 + 7a complete. Phase 7a landed `parcel-gate` (ruff + bandit + a custom AST policy with 4 capability unlocks) and the sandbox-install pipeline — candidates land in `var/sandbox/<uuid>/`, migrate into `mod_sandbox_<uuid>`, mount at `/mod-sandbox/<uuid>/`, and admins can dismiss or promote via HTML, JSON, or `parcel sandbox` CLI. 224-test suite. Phase 7b (Claude API generator) is next.
+**Status:** Pre-alpha. Phases 1–6 + 7a + 7b complete. Phase 7b wires the Claude API (and an optional Claude Code CLI fallback) in front of the 7a gate + sandbox — `POST /admin/ai/generate` or `parcel ai generate "<prompt>"` produces a candidate module and either installs it into a sandbox or returns a structured failure with the gate report. One-turn auto-repair on rejection. 242-test suite. Phase 7c (chat UI + richer preview) is next.
 
 ## Vision
 
@@ -107,9 +107,22 @@ uv run parcel sandbox dismiss <uuid>                 # drop schema + rm files
 
 The gate (`packages/parcel-gate/`) runs `ruff` + `bandit` + a custom AST policy that blocks `os`/`subprocess`/`socket`/`eval`/`exec`/`compile`/`__import__`/dynamic imports unless a matching capability (`filesystem`, `process`, `network`, `raw_sql`) is declared in the module manifest. Admin UI at `/sandbox` mirrors the CLI.
 
-### What Phase 7b+ will add
+### Generate a module with Claude (Phase 7b)
 
-Phase 7b wires the Claude API in front of the gate (chat → draft → gate → sandbox install). Phase 7c adds the chat UI and a richer preview (sample records, rendered view screenshots).
+Requires `ANTHROPIC_API_KEY` in your `.env` (or set `PARCEL_AI_PROVIDER=cli` to use the Claude Code CLI instead — it must be on PATH).
+
+```bash
+uv run parcel ai generate "track invoices with number, amount, date, and status"
+# ✓ sandbox <uuid> at /mod-sandbox/<short>/
+```
+
+The generator calls the configured provider, zips the result, runs it through the 7a gate, and either installs it into a sandbox or returns the gate report so you can see what was wrong. On a gate rejection it automatically retries **once** with the report attached — most first-pass mistakes (accidentally `import os`, missing an allowed-list import) fix themselves on the second turn.
+
+The same flow is available over HTTP: `POST /admin/ai/generate {"prompt": "..."}` (requires the `ai.generate` permission).
+
+### What Phase 7c will add
+
+The chat UI — a browser surface to iterate on prompts, see intermediate state, and accept or reject candidates without re-running the whole pipeline. Richer preview too: sample records seeded into the sandbox, screenshots of the rendered views, so admins can judge an AI-drafted module without clicking through it live.
 
 ## Roadmap
 

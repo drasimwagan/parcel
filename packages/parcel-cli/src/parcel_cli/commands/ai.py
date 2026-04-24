@@ -50,19 +50,12 @@ async def _run(prompt: str) -> None:
             await db.commit()
 
     if isinstance(result, GenerationFailure):
-        typer.echo(
-            f"✗ generation failed ({result.kind}): {result.message}", err=True
-        )
+        typer.echo(f"✗ generation failed ({result.kind}): {result.message}", err=True)
         if result.gate_report is not None:
-            errors = [
-                f
-                for f in result.gate_report["findings"]
-                if f["severity"] == "error"
-            ]
+            errors = [f for f in result.gate_report["findings"] if f["severity"] == "error"]
             for f in errors[:10]:
                 typer.echo(
-                    f"  [{f['check']}] {f['path']}:{f['line']} "
-                    f"{f['rule']}: {f['message']}",
+                    f"  [{f['check']}] {f['path']}:{f['line']} " f"{f['rule']}: {f['message']}",
                     err=True,
                 )
         raise typer.Exit(1)

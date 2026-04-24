@@ -27,9 +27,7 @@ def upgrade() -> None:
             "ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description"
         )
     )
-    admin_id = conn.execute(
-        sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")
-    ).scalar_one()
+    admin_id = conn.execute(sa.text("SELECT id FROM shell.roles WHERE name = 'admin'")).scalar_one()
     conn.execute(
         sa.text(
             "INSERT INTO shell.role_permissions (role_id, permission_name) "

@@ -68,9 +68,7 @@ async def generate_module(
         with tempfile.TemporaryDirectory() as tmp:
             working_dir = Path(tmp)
             try:
-                generated = await provider.generate(
-                    prompt, working_dir, prior=prior
-                )
+                generated = await provider.generate(prompt, working_dir, prior=prior)
             except ProviderError as exc:
                 _log.info(
                     "ai.generate.provider_error",

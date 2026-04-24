@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from _fake_provider import FakeProvider
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from _fake_provider import FakeProvider
 from parcel_shell.ai.generator import GenerationFailure, generate_module
 from parcel_shell.ai.provider import ProviderError
 from parcel_shell.config import Settings
@@ -27,9 +27,7 @@ def _contacts_files() -> dict[str, bytes]:
 
 
 @pytest.mark.asyncio
-async def test_generator_success_first_attempt(
-    committing_app: FastAPI, settings: Settings
-) -> None:
+async def test_generator_success_first_attempt(committing_app: FastAPI, settings: Settings) -> None:
     fake = FakeProvider(queue=[_contacts_files()])
     engine = create_async_engine(settings.database_url, pool_pre_ping=True)
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)

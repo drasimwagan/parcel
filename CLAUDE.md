@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 7a — Static-analysis gate + sandbox install done.** Phase 7 is decomposed into 7a (gate + sandbox), 7b (Claude API), 7c (chat UI + preview UX). `parcel-gate` is a new workspace package: `ruff` (subprocess, structured JSON) + `bandit` (in-process) + custom AST policy with 4 capability unlocks (`filesystem`, `process`, `network`, `raw_sql`) and hard blocks on `sys`/`importlib` imports, `parcel_shell.*` imports, the four dangerous builtin calls, and dunder-escape attributes. Tests/caches are excluded — the gate only examines runtime code. Sandbox install lands candidates in `var/sandbox/<uuid>/`, loads via `importlib.util` (unique `sys.modules` alias per sandbox), migrates into `mod_sandbox_<uuid>`, mounts at `/mod-sandbox/<uuid>`, with a 7-day TTL. Admin surfaces: `/sandbox` HTML + `/admin/sandbox` JSON; three permissions (`sandbox.read`/`install`/`promote`); `parcel sandbox install|list|show|promote|dismiss|prune` CLI. Promote copies files to `modules/<name>/` and runs the real install path. 224-test suite.
+**Phase 7b — Claude API generator done.** Phase 7 is decomposed: 7a (gate + sandbox) ✅, **7b (Claude generator) ✅**, 7c (chat UI + richer preview) next. `parcel_shell.ai` package ships a `ClaudeProvider` Protocol with two implementations: `AnthropicAPIProvider` (default, uses the `anthropic` SDK + our own `write_file`/`submit_module` tool-use loop with path/size safety and a 20-iteration hard cap) and `ClaudeCodeCLIProvider` (subprocess the `claude` CLI with `--output-format json` in a throwaway working dir). `generate_module` orchestrator calls the provider, zips the files, hands them to Phase 7a's `create_sandbox`, and retries once with the gate report attached on rejection. Failure kinds (`provider_error` / `no_files` / `gate_rejected` / `exceeded_retries`) map onto 502/400/422/422. System prompt is a versioned `.md` file. Admin surfaces: `POST /admin/ai/generate` + `parcel ai generate "<prompt>"` CLI. New `ai.generate` permission (migration 0005) attached to the built-in admin role. Provider chosen at boot via `PARCEL_AI_PROVIDER=api|cli`; `ANTHROPIC_API_KEY` env var required for the default. Missing key → shell still boots, generator endpoint returns 503. 242-test suite.
 
-Next: **Phase 7b — Claude API generator.** Start a new session; prompt: "Begin Phase 7b per `CLAUDE.md` roadmap." Do not begin Phase 7b inside the Phase 7a commit cluster.
+Next: **Phase 7c — Chat UI + richer sandbox preview.** Start a new session; prompt: "Begin Phase 7c per `CLAUDE.md` roadmap." Do not begin Phase 7c inside the Phase 7b commit cluster.
 
 ## Locked-in decisions
 
@@ -86,6 +86,12 @@ Next: **Phase 7b — Claude API generator.** Start a new session; prompt: "Begin
 | Sandbox lifecycle | 7-day TTL. Dismiss: DROP SCHEMA + rm files + row stays for audit. Promote: copy files → `modules/<target_name>/`, rewrite package-name references, `uv pip install -e`, run `install_module`, then dismiss. Data in the sandbox is NOT copied to the real install. |
 | Sandbox UI | `/sandbox` (list) + `/sandbox/new` (upload) + `/sandbox/<uuid>` (detail with gate report); JSON parallel at `/admin/sandbox`. Sidebar section "AI Lab". Permissions `sandbox.read`/`install`/`promote` attached to `admin` role by migration 0004. |
 | Sandbox CLI | `parcel sandbox install <path>` / `list` / `show <uuid>` / `promote <uuid> <name> [-c cap …]` / `dismiss <uuid>` / `prune`. All reuse `with_shell()` via asgi-lifespan. |
+| AI provider abstraction | `parcel_shell.ai.provider.ClaudeProvider` Protocol with two impls: `AnthropicAPIProvider` (default, SDK + our `write_file`/`submit_module` tool-use loop with 20-iteration cap, 64 KiB per-file + 1 MiB total size caps, path safety against absolute/traversal/executable extensions) and `ClaudeCodeCLIProvider` (subprocess into a throwaway dir, parses `--output-format json`, 180s timeout). Selected at boot via `PARCEL_AI_PROVIDER=api\|cli` (default `api`). |
+| Generator orchestration | `parcel_shell.ai.generator.generate_module(prompt, *, provider, db, app, settings)` zips provider output → calls Phase 7a `create_sandbox` → on `GateRejected`, rebuilds a `PriorAttempt` with the report and retries **exactly once**. Failure enum: `provider_error` (502), `no_files` (400), `gate_rejected` / `exceeded_retries` (422). |
+| System prompt | Lives at `packages/parcel-shell/src/parcel_shell/ai/prompts/generate_module.md` — versioned, reviewable, loaded via `importlib.resources`. Contains the full reference scaffold, tool contract, capability vocabulary, hard-block list, allow-list. |
+| AI permission | `ai.generate` added via migration 0005 and attached to the built-in admin role. Required by `POST /admin/ai/generate` and `parcel ai generate`. |
+| Generator endpoints | HTTP: `POST /admin/ai/generate {"prompt": "…"}` → 201 with `SandboxOut`, or 503 if no provider, or 4xx/5xx with `GenerateFailure` detail. CLI: `parcel ai generate "<prompt>"` — exit 0 on sandbox, exit 1 on failure. Both block synchronously (30-90s typical); no ARQ queue yet. |
+| AI settings | `PARCEL_AI_PROVIDER` (default `api`), `ANTHROPIC_API_KEY` (required if provider is api; shell still boots without it, endpoint returns 503), `PARCEL_ANTHROPIC_MODEL` (default `claude-opus-4-7`). |
 
 ## Repository layout
 
@@ -137,8 +143,8 @@ contacts = "parcel_mod_contacts:module"
 | 5 | ✅ done | Contacts demo module end-to-end |
 | 6 | ✅ done | SDK polish + `parcel` CLI |
 | 7a | ✅ done | Static-analysis gate + sandbox install (no AI yet) |
-| 7b | ⏭ next | Claude API generator — chat, draft, hand off to the gate/sandbox |
-| 7c |  | Chat UI + richer sandbox preview (sample records, screenshots of views) |
+| 7b | ✅ done | Claude API generator — API + CLI provider, one-turn auto-repair |
+| 7c | ⏭ next | Chat UI + richer sandbox preview (sample records, screenshots of views) |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.

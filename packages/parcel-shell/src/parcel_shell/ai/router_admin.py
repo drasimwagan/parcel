@@ -35,8 +35,7 @@ async def generate(
     if provider is None:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "AI provider not configured — set ANTHROPIC_API_KEY "
-            "or PARCEL_AI_PROVIDER=cli",
+            "AI provider not configured — set ANTHROPIC_API_KEY " "or PARCEL_AI_PROVIDER=cli",
         )
     result = await generate_module(
         body.prompt,
@@ -47,9 +46,7 @@ async def generate(
     )
     if isinstance(result, GenerationFailure):
         raise HTTPException(
-            status_code=_KIND_TO_STATUS.get(
-                result.kind, status.HTTP_502_BAD_GATEWAY
-            ),
+            status_code=_KIND_TO_STATUS.get(result.kind, status.HTTP_502_BAD_GATEWAY),
             detail=GenerateFailure(
                 kind=result.kind,
                 message=result.message,
