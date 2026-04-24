@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from parcel_sdk.dashboards import (
@@ -39,8 +41,13 @@ def test_dashboard_basic_construction():
 
 def test_widget_is_frozen():
     w = HeadlineWidget(id="x", title="t", text="hi")
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         w.text = "mutated"  # type: ignore[misc]
+
+
+def test_data_is_required_for_data_widgets():
+    with pytest.raises(TypeError):
+        KpiWidget(id="x", title="t")  # type: ignore[call-arg]
 
 
 def test_series_and_table_dataclasses():

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 from uuid import UUID
 
@@ -51,24 +51,24 @@ class Widget:
     col_span: int = 2
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class KpiWidget(Widget):
-    data: Callable[[Ctx], Awaitable[Kpi]] = field(default=None)  # type: ignore[assignment]
+    data: Callable[[Ctx], Awaitable[Kpi]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class LineWidget(Widget):
-    data: Callable[[Ctx], Awaitable[Series]] = field(default=None)  # type: ignore[assignment]
+    data: Callable[[Ctx], Awaitable[Series]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BarWidget(Widget):
-    data: Callable[[Ctx], Awaitable[Series]] = field(default=None)  # type: ignore[assignment]
+    data: Callable[[Ctx], Awaitable[Series]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class TableWidget(Widget):
-    data: Callable[[Ctx], Awaitable[Table]] = field(default=None)  # type: ignore[assignment]
+    data: Callable[[Ctx], Awaitable[Table]]
 
 
 @dataclass(frozen=True)
