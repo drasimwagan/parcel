@@ -63,6 +63,9 @@ SHELL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("modules.install", "Install a discovered module"),
     ("modules.upgrade", "Run migrations for an already-installed module"),
     ("modules.uninstall", "Deactivate or remove a module"),
+    ("sandbox.read", "View sandbox installs and gate reports"),
+    ("sandbox.install", "Upload and install candidates into the sandbox"),
+    ("sandbox.promote", "Promote a sandbox install to a real module install"),
 )
 
 
