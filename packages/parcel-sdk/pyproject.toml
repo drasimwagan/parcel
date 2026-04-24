@@ -1,6 +1,6 @@
 [project]
 name = "parcel-sdk"
-version = "0.3.0"
+version = "0.4.0"
 description = "Parcel SDK — the stable Python API that every Parcel module imports"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from fastapi import APIRouter  # noqa: F401
     from sqlalchemy import MetaData  # noqa: F401
 
+from parcel_sdk.dashboards import Dashboard
 from parcel_sdk.sidebar import SidebarItem
 
 
@@ -29,3 +30,4 @@ class Module:
     router: Any | None = None
     templates_dir: Path | None = None
     sidebar_items: tuple[SidebarItem, ...] = ()
+    dashboards: tuple[Dashboard, ...] = ()
