@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     redis_url: str = Field(alias="REDIS_URL")
     log_level: str = Field(default="INFO", alias="PARCEL_LOG_LEVEL")
 
+    # Phase 7b — AI generator. None of these are strictly required to boot:
+    # the generator endpoint returns 503 until a provider is configured.
+    ai_provider: Literal["api", "cli"] = Field(default="api", alias="PARCEL_AI_PROVIDER")
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field(default="claude-opus-4-7", alias="PARCEL_ANTHROPIC_MODEL")
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg(cls, v: str) -> str:
