@@ -111,20 +111,25 @@ async def series_query(
     value_col: str,
     **params: Any,
 ) -> Series:
-    """Shape a query result into a single-dataset ``Series``."""
+    """Shape a query result into a single-dataset ``Series``.
+
+    Values are coerced to float to match ``Dataset.values`` (Postgres `numeric`
+    columns return Decimal by default; Chart.js expects plain numbers).
+    """
     result = await session.execute(text(sql), params)
     rows = result.mappings().all()
     labels = [str(r[label_col]) for r in rows]
-    values = [r[value_col] for r in rows]
+    values: list[float | int] = [
+        float(r[value_col]) if r[value_col] is not None else 0.0 for r in rows
+    ]
     return Series(labels=labels, datasets=[Dataset(label=value_col, values=values)])
 
 
 async def table_query(session: AsyncSession, sql: str, **params: Any) -> Table:
     """Shape a query result into a ``Table`` using column order."""
     result = await session.execute(text(sql), params)
-    rows = result.all()
-    columns = list(result.keys()) if rows else []
-    return Table(columns=columns, rows=[list(r) for r in rows])
+    columns = list(result.keys())
+    return Table(columns=columns, rows=[list(r) for r in result.all()])
 
 
 __all__ = [

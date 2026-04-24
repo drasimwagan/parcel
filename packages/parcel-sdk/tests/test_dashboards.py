@@ -117,3 +117,33 @@ async def test_table_query_shapes_rows(pg_session: AsyncSession):
     )
     assert t.columns == ["a", "b"]
     assert t.rows == [["x", 1], ["y", 2]]
+
+
+async def test_table_query_preserves_columns_on_empty_result(pg_session: AsyncSession):
+    await pg_session.execute(text("CREATE SCHEMA IF NOT EXISTS t_dash_empty"))
+    await pg_session.execute(
+        text("CREATE TABLE t_dash_empty.x (a text, b int)")
+    )
+    await pg_session.commit()
+    t = await table_query(pg_session, "SELECT a, b FROM t_dash_empty.x")
+    assert t.columns == ["a", "b"]
+    assert t.rows == []
+
+
+async def test_series_query_coerces_numeric_to_float(pg_session: AsyncSession):
+    await pg_session.execute(text("CREATE SCHEMA IF NOT EXISTS t_dash_num"))
+    await pg_session.execute(
+        text("CREATE TABLE t_dash_num.x (label text, v numeric)")
+    )
+    await pg_session.execute(
+        text("INSERT INTO t_dash_num.x VALUES ('a', 1.5), ('b', 2)")
+    )
+    await pg_session.commit()
+    s = await series_query(
+        pg_session,
+        "SELECT label, v FROM t_dash_num.x ORDER BY label",
+        label_col="label",
+        value_col="v",
+    )
+    assert s.datasets[0].values == [1.5, 2.0]
+    assert all(isinstance(x, float) for x in s.datasets[0].values)
