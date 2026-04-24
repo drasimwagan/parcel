@@ -7,6 +7,7 @@ import jinja2
 from fastapi.templating import Jinja2Templates
 
 _SHELL_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+_DASHBOARDS_DIR = Path(__file__).resolve().parents[1] / "dashboards" / "templates"
 
 
 @lru_cache(maxsize=1)
@@ -16,7 +17,12 @@ def get_templates() -> Jinja2Templates:
     """
     tpl = Jinja2Templates(directory=str(_SHELL_TEMPLATES_DIR))
     # Swap in a ChoiceLoader so we can prepend module template dirs at runtime.
-    tpl.env.loader = jinja2.ChoiceLoader([jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR))])
+    tpl.env.loader = jinja2.ChoiceLoader(
+        [
+            jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR)),
+            jinja2.FileSystemLoader(str(_DASHBOARDS_DIR)),
+        ]
+    )
     # Expose active_href() so templates can pick the single sidebar item to highlight.
     from parcel_shell.ui.sidebar import active_href
 

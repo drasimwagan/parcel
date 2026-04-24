@@ -1,0 +1,24 @@
+{% extends "_base.html" %}
+{% block title %}Dashboards · Parcel{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Dashboards</h1>
+{% if not groups %}
+<p class="text-gray-500">No dashboards available.</p>
+{% else %}
+{% for module_name, items in groups %}
+<section class="mb-6">
+  <h2 class="text-lg font-medium mb-2 capitalize">{{ module_name }}</h2>
+  <ul class="space-y-1">
+    {% for dash in items %}
+    <li>
+      <a href="/dashboards/{{ module_name }}/{{ dash.slug }}" class="text-blue-600 hover:underline">
+        {{ dash.title }}
+      </a>
+      {% if dash.description %}<span class="text-gray-500 ml-2">{{ dash.description }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}
