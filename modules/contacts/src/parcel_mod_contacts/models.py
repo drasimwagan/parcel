@@ -50,5 +50,8 @@ class Contact(ContactsBase):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
+    welcomed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
     company: Mapped[Company | None] = relationship(lazy="selectin")
