@@ -100,6 +100,7 @@ async def contacts_create(
             },
             status_code=400,
         )
+    await shell_api.emit(db, "contacts.contact.created", new)
     response = RedirectResponse(url=f"/mod/contacts/{new.id}", status_code=303)
     shell_api.set_flash(response, Flash(kind="success", msg=f"Created {new.email}"))
     return response

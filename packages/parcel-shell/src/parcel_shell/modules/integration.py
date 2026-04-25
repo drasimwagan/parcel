@@ -47,6 +47,14 @@ def mount_module(app: FastAPI, discovered: DiscoveredModule) -> None:
                 slug=report.slug,
                 permission=report.permission,
             )
+    for workflow in getattr(discovered.module, "workflows", ()):
+        if workflow.permission not in declared:
+            _log.warning(
+                "module.workflow.unknown_permission",
+                module=name,
+                slug=workflow.slug,
+                permission=workflow.permission,
+            )
 
 
 async def sync_active_modules(app: FastAPI) -> None:

@@ -1,0 +1,11 @@
+{% if t.__class__.__name__ == "OnCreate" %}
+  <span class="trigger-badge">on create &middot; <code>{{ t.event }}</code></span>
+{% elif t.__class__.__name__ == "OnUpdate" %}
+  <span class="trigger-badge">on update &middot; <code>{{ t.event }}</code>
+    {% if t.when_changed %}&middot; when [{{ t.when_changed|join(", ") }}] changes{% endif %}
+  </span>
+{% elif t.__class__.__name__ == "Manual" %}
+  <span class="trigger-badge">manual &middot; <code>{{ t.event }}</code></span>
+{% else %}
+  <span class="trigger-badge">{{ t.__class__.__name__ }}</span>
+{% endif %}

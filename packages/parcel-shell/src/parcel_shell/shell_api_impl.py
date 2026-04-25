@@ -45,3 +45,15 @@ class DefaultShellBinding:
         sessionmaker = request.app.state.sessionmaker
         async with sessionmaker() as db:
             return await _rbac_service.effective_permissions(db, user.id)
+
+    async def emit(
+        self,
+        session: Any,
+        event: str,
+        subject: Any,
+        *,
+        changed: tuple[str, ...] = (),
+    ) -> None:
+        from parcel_shell.workflows.bus import _emit_to_session
+
+        await _emit_to_session(session, event, subject, changed=changed)

@@ -548,3 +548,119 @@ Each request spins up a fresh Chromium process (~500 ms-1 s startup). At
 Phase 9 volumes that's acceptable. If a deployment ever serves enough PDF
 requests for the cold start to matter, swap to a long-lived browser in
 `app.state` and reuse contexts.
+
+
+## Workflows (Phase 10a)
+
+A module can declare any number of **workflows** — trigger→action chains that
+run automatically when the shell observes events emitted from that module's
+endpoints. Phase 10a covers synchronous triggers and two minimal actions
+(`UpdateField`, `EmitAudit`); cron / queued / rich actions arrive in 10b/10c.
+
+### Declaring a workflow
+
+```python
+# src/parcel_mod_<name>/workflows.py
+from datetime import UTC, datetime
+
+from parcel_sdk import EmitAudit, OnCreate, UpdateField, Workflow, WorkflowContext
+
+
+def _now(_ctx: WorkflowContext) -> datetime:
+    return datetime.now(UTC)
+
+
+welcome = Workflow(
+    slug="new_contact_welcome",
+    title="Welcome new contact",
+    permission="contacts.read",
+    triggers=(OnCreate("contacts.contact.created"),),
+    actions=(
+        UpdateField(field="welcomed_at", value=_now),
+        EmitAudit(message="Welcomed {{ subject.first_name or subject.email }}"),
+    ),
+)
+```
+
+Wire it into the manifest:
+
+```python
+module = Module(
+    name="contacts",
+    version="0.4.0",
+    ...,
+    workflows=(welcome,),
+)
+```
+
+### Triggers
+
+| Trigger | Fires when |
+|---|---|
+| `OnCreate(event)` | The named event is emitted via `shell_api.emit`. |
+| `OnUpdate(event, when_changed=())` | Same, with optional filter — `when_changed=("email",)` fires only when "email" is in the emitted `changed` list. Empty tuple matches any update event with the right name. |
+| `Manual(event)` | Never fires from `emit`. Only via `POST /workflows/<module>/<slug>/run`, which dispatches a synthetic event with the trigger's `event` name. |
+
+### Actions
+
+| Action | Behaviour |
+|---|---|
+| `UpdateField(field, value)` | Re-fetches the trigger's subject by id in the workflow's session, sets `field` to `value` (literal or `Callable[[WorkflowContext], Any]`), commits the new session. |
+| `EmitAudit(message)` | Renders the Jinja template against `{subject, event, ctx}` and stores the result in the audit row's `payload.audit_message`. No side effect beyond the audit row — purely for human readability. |
+
+### Wiring `emit`
+
+Module endpoints emit events explicitly, after the relevant DB write:
+
+```python
+@router.post("/")
+async def create_contact(
+    request: Request,
+    user=Depends(shell_api.require_permission("contacts.write")),
+    db: AsyncSession = Depends(shell_api.get_session()),
+):
+    new_contact = await service.create_contact(db, ...)
+    await shell_api.emit(db, "contacts.contact.created", new_contact)
+    return RedirectResponse("/mod/contacts/", status_code=303)
+```
+
+The signature is `emit(session, event, subject, *, changed=())`. Subject is
+typically a SQLAlchemy model whose `.id` is read for `subject_id`. The shell
+queues the event on `session.info` and dispatches workflows after the request
+session commits — your handler returns immediately; workflows run on a fresh
+session in the background.
+
+### Failure semantics
+
+A workflow's actions run in a single transaction in the dispatch session. If
+any action raises, the entire chain rolls back and the audit row is written
+with `status="error"` and `failed_action_index` pointing at the failing
+action. The originating handler's commit (which already succeeded) is
+untouched.
+
+### Permissions and the audit log
+
+`Workflow.permission` is one of your module's own permissions (e.g.
+`contacts.read`). It gates both the audit log view at
+`/workflows/<module>/<slug>` and the manual-run POST endpoint. There are no
+shell-level `workflows.*` permissions and no shell migrations beyond the
+audit table itself.
+
+If `Workflow.permission` doesn't match any permission your module declares,
+the shell logs `module.workflow.unknown_permission` at WARN on mount. The
+workflow still mounts but no user can ever see it.
+
+### Testing workflows
+
+Unit-test `_matches` and `execute_action` against a fake context (see
+`packages/parcel-shell/tests/test_workflows_runner.py`). End-to-end through
+the live app: POST a contact, then poll for the `welcomed_at` column + an
+audit row with `status='ok'`. See the `test_creating_a_contact_triggers_welcome_workflow`
+test in `modules/contacts/tests/test_contacts_router.py` for the reference.
+
+### What's not in 10a
+
+- **`OnSchedule(cron)`** — lands in 10b alongside ARQ.
+- **`send_email`, `call_webhook`, `run_module_function`, `generate_report`** actions — 10c.
+- **State machines** — workflows are chains. Use a state column + `OnUpdate` triggers if you need state-machine-like behaviour today; richer support comes later.
+- **Retry** — if an action raises, no retry. The audit row records the failure; admin can re-trigger via the manual route if the workflow declares `Manual`.
