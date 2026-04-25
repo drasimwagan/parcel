@@ -10,6 +10,7 @@ from parcel_sdk import (
     EmitAudit,
     Manual,
     OnCreate,
+    OnSchedule,
     OnUpdate,
     UpdateField,
     Workflow,
@@ -108,3 +109,49 @@ def test_workflow_context_changed_defaults_empty() -> None:
         subject_id=uuid4(),
     )
     assert ctx.changed == ()
+
+
+def test_onschedule_defaults_all_fields_to_none() -> None:
+    t = OnSchedule()
+    assert t.second is None
+    assert t.minute is None
+    assert t.hour is None
+    assert t.day is None
+    assert t.month is None
+    assert t.weekday is None
+
+
+def test_onschedule_accepts_int_or_set() -> None:
+    t1 = OnSchedule(hour=9, minute=0)
+    assert t1.hour == 9
+    t2 = OnSchedule(hour={9, 17}, minute=0, weekday={0, 1, 2, 3, 4})
+    assert t2.hour == {9, 17}
+    assert t2.weekday == {0, 1, 2, 3, 4}
+
+
+def test_onschedule_is_frozen_kw_only() -> None:
+    t = OnSchedule(hour=9)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        t.hour = 10  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        OnSchedule(0, 0)  # type: ignore[misc]
+
+
+def test_onschedule_rejects_out_of_range_hour() -> None:
+    with pytest.raises(ValueError, match="hour"):
+        OnSchedule(hour=24)
+
+
+def test_onschedule_rejects_out_of_range_minute() -> None:
+    with pytest.raises(ValueError, match="minute"):
+        OnSchedule(minute=60)
+
+
+def test_onschedule_rejects_out_of_range_weekday() -> None:
+    with pytest.raises(ValueError, match="weekday"):
+        OnSchedule(weekday=7)
+
+
+def test_onschedule_rejects_set_with_invalid_member() -> None:
+    with pytest.raises(ValueError, match="hour"):
+        OnSchedule(hour={9, 25})

@@ -171,3 +171,13 @@ async def test_dispatch_events_runs_matching_workflow_only(
         rows = (await s.scalars(select(WorkflowAudit))).all()
         assert len(rows) == 1
         assert rows[0].workflow_slug == "match"
+
+
+def test_matches_onschedule_never_via_event() -> None:
+    from parcel_sdk import OnSchedule
+
+    assert not _matches(OnSchedule(hour=9), {"event": "anything", "changed": ()})
+    assert not _matches(
+        OnSchedule(hour=9, minute=0),
+        {"event": "demo.thing.scheduled", "changed": ()},
+    )

@@ -45,3 +45,50 @@ def test_install_after_commit_listener_is_idempotent() -> None:
     from parcel_shell.workflows import bus
 
     assert bus._listener_installed is True
+
+
+async def test_after_commit_enqueues_to_arq_when_not_inline(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without INLINE env var, after_commit calls ArqRedis.enqueue_job."""
+    monkeypatch.delenv("PARCEL_WORKFLOWS_INLINE", raising=False)
+
+    enqueued: list[tuple[str, tuple, dict]] = []
+
+    class FakeArqRedis:
+        async def enqueue_job(self, name: str, *args, **kwargs):
+            enqueued.append((name, args, kwargs))
+            return None
+
+    # Stub the sessionmaker + arq_redis on session.info as the live
+    # `get_session` dep would.
+    db_session.info["sessionmaker"] = lambda: None
+    db_session.info["arq_redis"] = FakeArqRedis()
+    await _emit_to_session(db_session, "x.y.created", subject=None, changed=())
+
+    from parcel_shell.workflows.bus import _on_after_commit
+
+    _on_after_commit(db_session.sync_session)
+    import asyncio as _asyncio
+
+    await _asyncio.sleep(0.05)
+    assert len(enqueued) == 1
+    name, args, _kwargs = enqueued[0]
+    assert name == "run_event_dispatch"
+    payload = args[0]
+    assert payload[0]["event"] == "x.y.created"
+
+
+async def test_after_commit_skips_when_no_arq_redis_and_not_inline(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without INLINE and without arq_redis, dispatch is silently dropped."""
+    monkeypatch.delenv("PARCEL_WORKFLOWS_INLINE", raising=False)
+    db_session.info["sessionmaker"] = lambda: None
+    db_session.info.pop("arq_redis", None)
+    await _emit_to_session(db_session, "x.y.created", subject=None, changed=())
+
+    from parcel_shell.workflows.bus import _on_after_commit
+
+    # Should not raise.
+    _on_after_commit(db_session.sync_session)

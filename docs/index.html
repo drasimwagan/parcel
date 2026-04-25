@@ -47,7 +47,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phases 1–9 + 10a complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK + CLI, gate + sandbox, Claude generator + chat, dashboards, reports (Pydantic forms + headless-Chromium PDF), and workflows (sync triggers, post-commit dispatch, audit log, read-only UI). Phase 10b (scheduled triggers + ARQ) up next; rich actions (10c) and sandbox preview enrichment (11) follow.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–9 + 10a + 10b complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK + CLI, gate + sandbox, Claude generator + chat, dashboards, reports, and workflows (sync triggers, scheduled cron, ARQ worker container, audit log, read-only UI). Phase 10b-retry up next; rich actions (10c) and sandbox preview enrichment (11) follow.</div>
   </div>
 </section>
 
@@ -169,8 +169,13 @@
       </li>
       <li>
         <span class="phase-num">10b</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Workflows: scheduled triggers + ARQ — OnSchedule(hour=, minute=, ...), worker container, parcel worker CLI</span>
+      </li>
+      <li>
+        <span class="phase-num">10b-retry</span>
         <span class="phase-status next">⏭ next</span>
-        <span class="phase-goal">Workflows: scheduled triggers + ARQ — OnSchedule(cron), worker container, retry on top of the queue</span>
+        <span class="phase-goal">Workflows: per-workflow max_retries + exponential backoff on top of ARQ's queue</span>
       </li>
       <li>
         <span class="phase-num">10c</span>
@@ -219,7 +224,7 @@ uv run parcel sandbox promote &lt;uuid&gt; new_mod       <span style="color: var
     <p style="margin-top: 1.5rem">Phase 9 reports render PDFs through headless Chromium via <a href="https://playwright.dev/python/">Playwright</a> — install Chromium once per dev machine:</p>
 <pre><code>uv run playwright install chromium         <span style="color: var(--fg-muted)"># ~250 MB; reused by Phase 11 sandbox screenshots</span></code></pre>
     <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
-<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 347 tests, ~120s</span></code></pre>
+<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 417 tests, ~150s</span></code></pre>
   </div>
 </section>
 

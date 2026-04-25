@@ -1,6 +1,6 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 10a surface: Phase 9 + workflows (Workflow, triggers, actions, WorkflowContext).
+Phase 10b surface: Phase 10a + OnSchedule trigger (cron via ARQ).
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from parcel_sdk.workflows import (
     EmitAudit,
     Manual,
     OnCreate,
+    OnSchedule,
     OnUpdate,
     Trigger,
     UpdateField,
@@ -53,6 +54,7 @@ __all__ = [
     "Manual",
     "Module",
     "OnCreate",
+    "OnSchedule",
     "OnUpdate",
     "Permission",
     "Report",
@@ -73,4 +75,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.6.0"
+__version__ = "0.7.0"

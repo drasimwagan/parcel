@@ -48,6 +48,7 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         # spawn dispatch in a fresh session. AsyncSession.info is shared with
         # the underlying sync Session, so the listener reads the same dict.
         session.info["sessionmaker"] = session_factory
+        session.info["arq_redis"] = getattr(request.app.state, "arq_redis", None)
         try:
             yield session
         except Exception:
