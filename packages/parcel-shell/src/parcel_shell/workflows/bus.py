@@ -1,13 +1,22 @@
 """Workflow event bus.
 
 Module endpoints call ``shell_api.emit(session, event, subject)``; events are
-queued on ``session.info["pending_events"]`` and dispatched in a fresh session
-after the originating commit succeeds.
+queued on ``session.info["pending_events"]`` and dispatched after the
+originating commit succeeds.
+
+Two dispatch paths:
+- **Inline** (env var ``PARCEL_WORKFLOWS_INLINE=1``): events dispatch
+  in-process via ``loop.create_task(dispatch_events(...))`` — the Phase-10a
+  behaviour. Used by tests + ``parcel dev``.
+- **Queued** (default at runtime): events are JSON-encoded and enqueued to
+  Redis as ARQ jobs (``run_event_dispatch``); the worker container consumes
+  them and runs ``dispatch_events`` in its own process.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import structlog
@@ -52,16 +61,28 @@ def _on_after_commit(sync_session: Session) -> None:
         _log.debug("workflows.dispatch_skipped.no_sessionmaker", event_count=len(events))
         return
 
-    # Late import to avoid a cycle (runner imports models which imports ShellBase).
-    from parcel_shell.workflows.runner import dispatch_events
-
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # We're not inside an async context (e.g., a sync test commit). Drop.
         _log.debug("workflows.dispatch_skipped.no_loop", event_count=len(events))
         return
-    loop.create_task(dispatch_events(events, sessionmaker))
+
+    if os.environ.get("PARCEL_WORKFLOWS_INLINE"):
+        # Late import to avoid a cycle (runner imports models which imports ShellBase).
+        from parcel_shell.workflows.runner import dispatch_events
+
+        loop.create_task(dispatch_events(events, sessionmaker))
+        return
+
+    arq_redis = sync_session.info.get("arq_redis")
+    if arq_redis is None:
+        _log.warning("workflows.dispatch_skipped.no_arq_redis", event_count=len(events))
+        return
+
+    from parcel_shell.workflows.serialize import encode_events
+
+    payload = encode_events(events)
+    loop.create_task(arq_redis.enqueue_job("run_event_dispatch", payload))
 
 
 def install_after_commit_listener() -> None:
