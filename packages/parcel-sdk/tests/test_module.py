@@ -69,3 +69,27 @@ def test_module_accepts_dashboards_tuple():
 def test_module_dashboards_defaults_empty():
     m = Module(name="m", version="0.1.0")
     assert m.dashboards == ()
+
+
+from parcel_sdk import Report, ReportContext
+
+
+async def _report_data(_ctx: ReportContext) -> dict[str, object]:
+    return {}
+
+
+def test_module_reports_defaults_to_empty_tuple() -> None:
+    m = Module(name="demo", version="0.1.0")
+    assert m.reports == ()
+
+
+def test_module_reports_accepts_tuple_of_reports() -> None:
+    r = Report(
+        slug="dir",
+        title="Directory",
+        permission="demo.read",
+        template="reports/dir.html",
+        data=_report_data,
+    )
+    m = Module(name="demo", version="0.1.0", reports=(r,))
+    assert m.reports == (r,)
