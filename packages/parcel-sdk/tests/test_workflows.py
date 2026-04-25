@@ -155,3 +155,63 @@ def test_onschedule_rejects_out_of_range_weekday() -> None:
 def test_onschedule_rejects_set_with_invalid_member() -> None:
     with pytest.raises(ValueError, match="hour"):
         OnSchedule(hour={9, 25})
+
+
+def test_workflow_max_retries_defaults_zero() -> None:
+    w = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    assert w.max_retries == 0
+
+
+def test_workflow_retry_backoff_seconds_defaults_30() -> None:
+    w = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    assert w.retry_backoff_seconds == 30
+
+
+def test_workflow_accepts_max_retries_and_backoff() -> None:
+    w = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+        max_retries=3,
+        retry_backoff_seconds=10,
+    )
+    assert w.max_retries == 3
+    assert w.retry_backoff_seconds == 10
+
+
+def test_workflow_rejects_negative_max_retries() -> None:
+    with pytest.raises(ValueError, match="max_retries"):
+        Workflow(
+            slug="t",
+            title="T",
+            permission="x.read",
+            triggers=(OnCreate("a"),),
+            actions=(EmitAudit("hi"),),
+            max_retries=-1,
+        )
+
+
+def test_workflow_rejects_zero_retry_backoff_seconds() -> None:
+    with pytest.raises(ValueError, match="retry_backoff_seconds"):
+        Workflow(
+            slug="t",
+            title="T",
+            permission="x.read",
+            triggers=(OnCreate("a"),),
+            actions=(EmitAudit("hi"),),
+            retry_backoff_seconds=0,
+        )
