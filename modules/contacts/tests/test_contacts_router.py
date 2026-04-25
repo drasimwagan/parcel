@@ -220,3 +220,42 @@ async def test_company_create_then_delete_nulls_contact_company(
     # Contact detail still renders; company dropdown shows "—" selected.
     detail = await authed_contacts.get(f"/mod/contacts/{contact_id}")
     assert detail.status_code == 200
+
+
+async def test_directory_report_form_renders(authed_contacts: AsyncClient) -> None:
+    r = await authed_contacts.get("/reports/contacts/directory")
+    assert r.status_code == 200, r.text
+    assert "Contacts directory" in r.text
+    assert 'name="company"' in r.text
+    assert 'name="created_after"' in r.text
+
+
+async def test_directory_report_render_with_no_data(authed_contacts: AsyncClient) -> None:
+    r = await authed_contacts.get("/reports/contacts/directory/render")
+    assert r.status_code == 200, r.text
+    assert "Contacts directory" in r.text
+    # Empty directory message.
+    assert "No contacts match" in r.text or "Total: <strong>0</strong>" in r.text
+
+
+async def test_directory_report_render_after_creating_a_contact(
+    authed_contacts: AsyncClient,
+) -> None:
+    r = await authed_contacts.post(
+        "/mod/contacts/",
+        data={"email": "ada@example.com", "first_name": "Ada", "last_name": "Lovelace"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r2 = await authed_contacts.get("/reports/contacts/directory/render")
+    assert r2.status_code == 200, r2.text
+    assert "Ada Lovelace" in r2.text
+    assert "ada@example.com" in r2.text
+
+
+async def test_directory_report_appears_in_sidebar(authed_contacts: AsyncClient) -> None:
+    r = await authed_contacts.get("/")
+    assert r.status_code == 200
+    assert "Contacts: Contacts directory" in r.text
+    assert "/reports/contacts/directory" in r.text
