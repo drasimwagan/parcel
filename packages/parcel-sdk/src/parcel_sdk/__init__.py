@@ -1,6 +1,6 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 9 surface: Phase 8 + reports (Report, ReportContext).
+Phase 10a surface: Phase 9 + workflows (Workflow, triggers, actions, WorkflowContext).
 """
 
 from __future__ import annotations
@@ -27,17 +27,33 @@ from parcel_sdk.dashboards import (
 from parcel_sdk.module import Module, Permission
 from parcel_sdk.reports import Report, ReportContext
 from parcel_sdk.sidebar import SidebarItem
+from parcel_sdk.workflows import (
+    Action,
+    EmitAudit,
+    Manual,
+    OnCreate,
+    OnUpdate,
+    Trigger,
+    UpdateField,
+    Workflow,
+    WorkflowContext,
+)
 
 __all__ = [
+    "Action",
     "BarWidget",
     "Ctx",
     "Dashboard",
     "Dataset",
+    "EmitAudit",
     "HeadlineWidget",
     "Kpi",
     "KpiWidget",
     "LineWidget",
+    "Manual",
     "Module",
+    "OnCreate",
+    "OnUpdate",
     "Permission",
     "Report",
     "ReportContext",
@@ -45,7 +61,11 @@ __all__ = [
     "SidebarItem",
     "Table",
     "TableWidget",
+    "Trigger",
+    "UpdateField",
     "Widget",
+    "Workflow",
+    "WorkflowContext",
     "__version__",
     "run_async_migrations",
     "scalar_query",
@@ -53,4 +73,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.5.0"
+__version__ = "0.6.0"
