@@ -461,7 +461,7 @@ body.
 
 Notes:
 
-- The base CSS is intentionally tight (10pt body, 16pt title, 9pt header/footer). Don't pull in a Tailwind print stylesheet — WeasyPrint doesn't run JS, and Tailwind's CDN is JS-only.
+- The base CSS is intentionally tight (10pt body, 16pt title, 9pt header/footer). The report's HTML is rendered by headless Chromium, but the print pipeline waits only for the `load` event — long-running JS is not your friend in a printable document.
 - Module templates live under `<module_pkg>/templates/`. The shell prepends the directory to the Jinja loader at mount time.
 - `param_summary` returned from your data function appears in the page header next to "Generated &lt;timestamp&gt;". If you don't return one, the shell auto-builds `key=value; key=value` from the parameter model.
 
@@ -525,23 +525,26 @@ are complete references.
 
 ### PDF rendering
 
-The shell uses **WeasyPrint 62** to render the report template (extending
-`_report_base.html`, no admin chrome) into PDF bytes. WeasyPrint requires
-native libs (cairo, pango, gdk-pixbuf, libffi) — the Docker image installs
-them; on Windows dev machines without GTK, the shell still boots (the import
-is lazy) but the `/pdf` route returns a 303 with a flash error. Your tests
-should skip the PDF assertions when WeasyPrint can't load:
+The shell uses **Playwright + headless Chromium** to render the report
+template (extending `_report_base.html`, no admin chrome) into PDF bytes.
+Chromium ships as a self-contained ~250 MB binary — no GTK, no Cairo, no
+Pango, no Windows GTK runtime. The Docker image runs
+`playwright install --with-deps chromium`; on a fresh dev machine you'll
+need to run that once:
 
-```python
-def _weasyprint_loadable() -> bool:
-    try:
-        import weasyprint  # noqa: F401
-    except OSError:
-        return False
-    return True
-
-
-@pytest.mark.skipif(not _weasyprint_loadable(), reason="WeasyPrint native libs missing")
-async def test_pdf_renders(...):
-    ...
+```bash
+uv run playwright install chromium
 ```
+
+After that, PDF tests run cross-platform with no skip markers. The page
+size and margins come from your report's CSS `@page` rule (Playwright
+honours this via `prefer_css_page_size=True`). The page counter at the
+bottom of each printed page is forced through Playwright's `footer_template`
+rather than CSS — Chromium ignores the CSS Generated Content for Paged
+Media spec (`@top-center` / `@bottom-right`), so don't put running headers
+or footers in your `@page` rule.
+
+Each request spins up a fresh Chromium process (~500 ms-1 s startup). At
+Phase 9 volumes that's acceptable. If a deployment ever serves enough PDF
+requests for the cold start to matter, swap to a long-lived browser in
+`app.state` and reuse contexts.

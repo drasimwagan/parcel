@@ -9,11 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        curl build-essential libpq-dev git \
-        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
-        libcairo2 libgdk-pixbuf-2.0-0 libffi-dev \
-        shared-mime-info fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends curl build-essential libpq-dev git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv (fast Python package manager).
@@ -30,6 +26,12 @@ COPY modules/ ./modules/
 COPY uv.lock ./
 
 RUN uv sync --all-packages --frozen 2>/dev/null || uv sync --all-packages
+
+# Install Chromium for the reports PDF engine (Playwright). The
+# `--with-deps` flag installs the system libs Chromium needs at runtime
+# (fonts, X libs, etc.) — Playwright's own apt list, kept up to date by
+# Microsoft. ~250 MB image-size cost.
+RUN uv run playwright install --with-deps chromium
 
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

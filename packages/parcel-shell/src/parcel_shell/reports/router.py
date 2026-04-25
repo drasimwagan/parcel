@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 from datetime import UTC, datetime
-from pathlib import Path
 from urllib.parse import urlencode
 
 import structlog
@@ -23,11 +22,6 @@ from parcel_shell.ui.sidebar import sidebar_for
 from parcel_shell.ui.templates import get_templates
 
 _log = structlog.get_logger("parcel_shell.reports")
-_UI_STATIC_DIR = Path(__file__).resolve().parents[1] / "ui" / "static"
-# WeasyPrint resolves "/static/..." references against this base. Pointing at
-# the package root means an `<img src="/static/logo.png">` inside a report
-# resolves to the on-disk static asset.
-_BASE_URL = _UI_STATIC_DIR.parent.as_uri() + "/"
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -230,7 +224,7 @@ async def report_pdf(
 
     try:
         body = await _render_html_body(hit=hit, params=params, db=db, user_id=user.id)
-        pdf = html_to_pdf(body, base_url=_BASE_URL)
+        pdf = await html_to_pdf(body)
     except Exception as exc:  # noqa: BLE001
         _log.exception(
             "reports.pdf_failed",

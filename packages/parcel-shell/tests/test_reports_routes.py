@@ -16,14 +16,6 @@ from parcel_shell.modules.integration import mount_module
 pytestmark = pytest.mark.asyncio
 
 
-def _weasyprint_loadable() -> bool:
-    try:
-        import weasyprint  # noqa: F401
-    except OSError:
-        return False
-    return True
-
-
 class _Params(BaseModel):
     q: str | None = None
     n: int = 0
@@ -184,7 +176,6 @@ async def test_report_render_failure_shows_error_block(
     assert "could not be rendered" in r.text.lower()
 
 
-@pytest.mark.skipif(not _weasyprint_loadable(), reason="WeasyPrint native libs not available")
 async def test_report_pdf_returns_pdf_bytes(authed_with_demo_report: AsyncClient) -> None:
     r = await authed_with_demo_report.get("/reports/demo/dir/pdf?q=alice")
     assert r.status_code == 200
@@ -210,7 +201,7 @@ async def test_report_pdf_failure_redirects_with_flash(
     _mount(app, _REPORT_OK)
     _ensure_demo_template(app)
 
-    def _boom(_html: str, *, base_url: str) -> bytes:
+    async def _boom(_html: str) -> bytes:
         raise RuntimeError("pdf engine off")
 
     monkeypatch.setattr("parcel_shell.reports.router.html_to_pdf", _boom)
