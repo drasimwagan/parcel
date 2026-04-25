@@ -53,17 +53,21 @@ async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
 async def sessionmaker_factory(migrations_applied: str):
     """Real committing sessionmaker for runner tests that need an isolated session.
 
-    Truncates `shell.workflow_audit` after the test so audit-row counts in
-    sibling tests aren't polluted.
+    Truncates `shell.workflow_audit` on both setup and teardown so the test
+    sees a clean slate even when sibling tests (which don't use this fixture)
+    have written audit rows earlier in the run.
     """
+    from sqlalchemy import text as _text
+
     eng = create_async_engine(migrations_applied, pool_pre_ping=True)
     factory = async_sessionmaker(eng, expire_on_commit=False, class_=AsyncSession)
+    async with factory() as s:
+        await s.execute(_text("TRUNCATE TABLE shell.workflow_audit"))
+        await s.commit()
     try:
         yield factory
     finally:
         async with factory() as s:
-            from sqlalchemy import text as _text
-
             await s.execute(_text("TRUNCATE TABLE shell.workflow_audit"))
             await s.commit()
         await eng.dispose()

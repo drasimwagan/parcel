@@ -66,6 +66,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         await sync_active_modules(app)
 
+        # Workflows: install the after-commit listener and tell the runner
+        # which app is live (so dispatch can read app.state.active_modules_manifest).
+        from parcel_shell.workflows.bus import install_after_commit_listener
+        from parcel_shell.workflows.runner import set_active_app
+
+        install_after_commit_listener()
+        set_active_app(app)
+
         async with sessionmaker() as s:
             await mount_sandbox_on_boot(s, app)
 
@@ -143,6 +151,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from parcel_shell.reports.router import router as reports_router
 
     app.include_router(reports_router)
+
+    from parcel_shell.workflows.router import router as workflows_router
+
+    app.include_router(workflows_router)
 
     @app.exception_handler(HTMLRedirect)
     async def _html_redirect(request: Request, exc: HTMLRedirect) -> RedirectResponse:
