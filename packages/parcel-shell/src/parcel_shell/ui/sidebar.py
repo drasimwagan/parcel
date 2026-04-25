@@ -10,6 +10,7 @@ __all__ = [
     "SidebarItem",
     "SidebarSection",
     "_reports_section",
+    "_workflows_section",
     "active_href",
     "composed_sections",
     "sidebar_for",
@@ -120,6 +121,23 @@ def _reports_section(request, perms: set[str]) -> SidebarSection | None:
     return SidebarSection(label="Reports", items=tuple(items))
 
 
+def _workflows_section(request, perms: set[str]) -> SidebarSection | None:
+    """Return a sidebar section for /workflows if the user can see >= 1 workflow.
+
+    Mirrors ``_dashboards_section``'s aggregate-link pattern (one link, not
+    one entry per workflow).
+    """
+    manifest = getattr(request.app.state, "active_modules_manifest", {}) or {}
+    for module in manifest.values():
+        for wf in getattr(module, "workflows", ()):
+            if wf.permission in perms:
+                return SidebarSection(
+                    label="Workflows",
+                    items=(SidebarItem(label="Workflows", href="/workflows", permission=None),),
+                )
+    return None
+
+
 def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:
     """Convenience: compose the sidebar using the live app state."""
     module_sections = getattr(request.app.state, "active_modules_sidebar", None)
@@ -132,6 +150,10 @@ def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:
     rep = _reports_section(request, perms)
     if rep is not None:
         out.insert(insert_at, rep)
+        insert_at += 1
+    wf = _workflows_section(request, perms)
+    if wf is not None:
+        out.insert(insert_at, wf)
     return out
 
 
