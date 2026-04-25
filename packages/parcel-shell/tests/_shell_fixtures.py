@@ -49,6 +49,26 @@ async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
         await eng.dispose()
 
 
+@pytest.fixture
+async def sessionmaker_factory(migrations_applied: str):
+    """Real committing sessionmaker for runner tests that need an isolated session.
+
+    Truncates `shell.workflow_audit` after the test so audit-row counts in
+    sibling tests aren't polluted.
+    """
+    eng = create_async_engine(migrations_applied, pool_pre_ping=True)
+    factory = async_sessionmaker(eng, expire_on_commit=False, class_=AsyncSession)
+    try:
+        yield factory
+    finally:
+        async with factory() as s:
+            from sqlalchemy import text as _text
+
+            await s.execute(_text("TRUNCATE TABLE shell.workflow_audit"))
+            await s.commit()
+        await eng.dispose()
+
+
 def _upgrade_head(url: str) -> None:
     cfg = Config(str(ALEMBIC_INI))
     cfg.set_main_option("sqlalchemy.url", url)
