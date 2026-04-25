@@ -10,5 +10,5 @@ runner = CliRunner()
 def test_help_lists_all_subcommands() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for name in ("new-module", "install", "migrate", "dev", "serve"):
+    for name in ("new-module", "install", "migrate", "dev", "serve", "worker"):
         assert name in result.stdout
