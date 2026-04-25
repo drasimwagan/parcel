@@ -38,6 +38,16 @@ def mount_module(app: FastAPI, discovered: DiscoveredModule) -> None:
     app.state.active_modules_manifest[name] = discovered.module
     _log.info("module.mounted", name=name)
 
+    declared = {p.name for p in discovered.module.permissions}
+    for report in getattr(discovered.module, "reports", ()):
+        if report.permission not in declared:
+            _log.warning(
+                "module.report.unknown_permission",
+                module=name,
+                slug=report.slug,
+                permission=report.permission,
+            )
+
 
 async def sync_active_modules(app: FastAPI) -> None:
     """At lifespan startup, mount every active installed module."""

@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from sqlalchemy import MetaData  # noqa: F401
 
     from parcel_sdk.dashboards import Dashboard
+    from parcel_sdk.reports import Report
 
 from parcel_sdk.sidebar import SidebarItem
 
@@ -32,3 +33,4 @@ class Module:
     templates_dir: Path | None = None
     sidebar_items: tuple[SidebarItem, ...] = ()
     dashboards: tuple[Dashboard, ...] = ()
+    reports: tuple[Report, ...] = ()

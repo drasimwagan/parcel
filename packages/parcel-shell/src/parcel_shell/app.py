@@ -140,6 +140,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(dashboards_router)
 
+    from parcel_shell.reports.router import router as reports_router
+
+    app.include_router(reports_router)
+
     @app.exception_handler(HTMLRedirect)
     async def _html_redirect(request: Request, exc: HTMLRedirect) -> RedirectResponse:
         response = RedirectResponse(url=exc.location, status_code=303)

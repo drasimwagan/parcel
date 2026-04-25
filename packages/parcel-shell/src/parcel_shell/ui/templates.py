@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 _SHELL_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 _DASHBOARDS_DIR = Path(__file__).resolve().parents[1] / "dashboards" / "templates"
+_REPORTS_DIR = Path(__file__).resolve().parents[1] / "reports" / "templates"
 
 
 @lru_cache(maxsize=1)
@@ -21,6 +22,7 @@ def get_templates() -> Jinja2Templates:
         [
             jinja2.FileSystemLoader(str(_SHELL_TEMPLATES_DIR)),
             jinja2.FileSystemLoader(str(_DASHBOARDS_DIR)),
+            jinja2.FileSystemLoader(str(_REPORTS_DIR)),
         ]
     )
     # Expose active_href() so templates can pick the single sidebar item to highlight.

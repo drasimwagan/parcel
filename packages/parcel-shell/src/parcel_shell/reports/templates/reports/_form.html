@@ -1,0 +1,21 @@
+{% extends "_base.html" %}
+{% block title %}{{ report.title }}{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-xl font-semibold">{{ report.title }}</h1>
+  <p class="text-sm text-gray-500">{{ module_name|capitalize }} report</p>
+</div>
+<div class="bg-white rounded shadow p-6 max-w-xl">
+  <form method="get" action="/reports/{{ module_name }}/{{ report.slug }}/render"
+        hx-get="/reports/{{ module_name }}/{{ report.slug }}/render"
+        hx-target="#report-content" hx-push-url="true">
+    {{ form_html|safe }}
+    <div class="mt-4 flex gap-2">
+      <button type="submit" class="px-3 py-1 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700">
+        Run report
+      </button>
+    </div>
+  </form>
+  <div id="report-content"></div>
+</div>
+{% endblock %}

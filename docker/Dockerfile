@@ -27,6 +27,12 @@ COPY uv.lock ./
 
 RUN uv sync --all-packages --frozen 2>/dev/null || uv sync --all-packages
 
+# Install Chromium for the reports PDF engine (Playwright). The
+# `--with-deps` flag installs the system libs Chromium needs at runtime
+# (fonts, X libs, etc.) — Playwright's own apt list, kept up to date by
+# Microsoft. ~250 MB image-size cost.
+RUN uv run playwright install --with-deps chromium
+
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

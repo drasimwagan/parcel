@@ -1,7 +1,6 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 8 surface: Phase 7 + dashboards (Dashboard, Widget subclasses, Ctx,
-Kpi/Series/Table, query helpers).
+Phase 9 surface: Phase 8 + reports (Report, ReportContext).
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ from parcel_sdk.dashboards import (
     table_query,
 )
 from parcel_sdk.module import Module, Permission
+from parcel_sdk.reports import Report, ReportContext
 from parcel_sdk.sidebar import SidebarItem
 
 __all__ = [
@@ -39,6 +39,8 @@ __all__ = [
     "LineWidget",
     "Module",
     "Permission",
+    "Report",
+    "ReportContext",
     "Series",
     "SidebarItem",
     "Table",
@@ -51,4 +53,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.4.0"
+__version__ = "0.5.0"

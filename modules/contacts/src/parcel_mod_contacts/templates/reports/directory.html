@@ -1,0 +1,24 @@
+{% extends "reports/_report_base.html" %}
+{% block content %}
+  <p>Total: <strong>{{ total }}</strong> contact{{ "" if total == 1 else "s" }}</p>
+  {% if contacts %}
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Company</th><th>Created</th></tr>
+      </thead>
+      <tbody>
+        {% for c in contacts %}
+          <tr>
+            <td>{{ ((c.first_name or "") ~ " " ~ (c.last_name or "")).strip() or "—" }}</td>
+            <td>{{ c.email }}</td>
+            <td>{{ c.phone or "—" }}</td>
+            <td>{{ c.company.name if c.company else "—" }}</td>
+            <td>{{ c.created_at.strftime("%Y-%m-%d") }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No contacts match the selected filters.</p>
+  {% endif %}
+{% endblock %}

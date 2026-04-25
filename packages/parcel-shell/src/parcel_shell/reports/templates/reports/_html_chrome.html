@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block title %}{{ report.title }}{% endblock %}
+{% block content %}
+<div class="mb-4 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl font-semibold">{{ report.title }}</h1>
+    <p class="text-sm text-gray-500">{{ module_name|capitalize }} report</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="/reports/{{ module_name }}/{{ report.slug }}{% if querystring %}?{{ querystring }}{% endif %}"
+       class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50">Edit filters</a>
+    <a href="/reports/{{ module_name }}/{{ report.slug }}/pdf{% if querystring %}?{{ querystring }}{% endif %}"
+       class="px-3 py-1 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700">Download PDF</a>
+  </div>
+</div>
+<div id="report-content" class="bg-white rounded shadow p-6">
+  {{ report_html|safe }}
+</div>
+{% endblock %}

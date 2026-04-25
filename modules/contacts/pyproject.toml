@@ -1,6 +1,6 @@
 [project]
 name = "parcel-mod-contacts"
-version = "0.2.0"
+version = "0.3.0"
 description = "Parcel demo module — Contacts / CRM lite"
 readme = "README.md"
 requires-python = ">=3.12"
