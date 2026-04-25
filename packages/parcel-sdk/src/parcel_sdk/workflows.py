@@ -39,7 +39,56 @@ class Manual:
     event: str
 
 
-Trigger = OnCreate | OnUpdate | Manual
+_RANGES = {
+    "second": (0, 59),
+    "minute": (0, 59),
+    "hour": (0, 23),
+    "day": (1, 31),
+    "month": (1, 12),
+    "weekday": (0, 6),
+}
+
+
+@dataclass(frozen=True, kw_only=True)
+class OnSchedule:
+    """Fires from the worker's cron scheduler.
+
+    Each field accepts an `int`, a `set[int]`, or `None` (matches any).
+    Fields follow ARQ's `cron()` semantics:
+
+    - `second`, `minute`: 0-59
+    - `hour`: 0-23
+    - `day`: 1-31
+    - `month`: 1-12
+    - `weekday`: 0-6 (Monday is 0; matches `datetime.weekday()`)
+
+    Examples:
+        OnSchedule(hour=9, minute=0)                       # daily at 09:00
+        OnSchedule(hour=9, minute=0, weekday={0,1,2,3,4})  # weekdays at 09:00
+        OnSchedule(minute={0, 15, 30, 45})                 # every 15 minutes
+    """
+
+    second: int | set[int] | None = None
+    minute: int | set[int] | None = None
+    hour: int | set[int] | None = None
+    day: int | set[int] | None = None
+    month: int | set[int] | None = None
+    weekday: int | set[int] | None = None
+
+    def __post_init__(self) -> None:
+        for name, (lo, hi) in _RANGES.items():
+            value = getattr(self, name)
+            if value is None:
+                continue
+            members = value if isinstance(value, set) else {value}
+            for v in members:
+                if not isinstance(v, int) or v < lo or v > hi:
+                    raise ValueError(
+                        f"OnSchedule {name}={value!r} out of range [{lo}, {hi}]"
+                    )
+
+
+Trigger = OnCreate | OnUpdate | Manual | OnSchedule
 
 
 @dataclass(frozen=True)
@@ -96,6 +145,7 @@ __all__ = [
     "EmitAudit",
     "Manual",
     "OnCreate",
+    "OnSchedule",
     "OnUpdate",
     "Trigger",
     "UpdateField",
