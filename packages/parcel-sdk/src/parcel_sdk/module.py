@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
     from parcel_sdk.dashboards import Dashboard
     from parcel_sdk.reports import Report
+    from parcel_sdk.workflows import Workflow
 
 from parcel_sdk.sidebar import SidebarItem
 
@@ -34,3 +35,4 @@ class Module:
     sidebar_items: tuple[SidebarItem, ...] = ()
     dashboards: tuple[Dashboard, ...] = ()
     reports: tuple[Report, ...] = ()
+    workflows: tuple[Workflow, ...] = ()

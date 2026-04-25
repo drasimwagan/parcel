@@ -5,7 +5,17 @@ from pathlib import Path
 import pytest
 from sqlalchemy import MetaData
 
-from parcel_sdk import Dashboard, KpiWidget, Module, Permission, Report, ReportContext
+from parcel_sdk import (
+    Dashboard,
+    EmitAudit,
+    KpiWidget,
+    Module,
+    OnCreate,
+    Permission,
+    Report,
+    ReportContext,
+    Workflow,
+)
 
 
 def test_permission_is_frozen_dataclass() -> None:
@@ -90,3 +100,20 @@ def test_module_reports_accepts_tuple_of_reports() -> None:
     )
     m = Module(name="demo", version="0.1.0", reports=(r,))
     assert m.reports == (r,)
+
+
+def test_module_workflows_defaults_to_empty_tuple() -> None:
+    m = Module(name="demo", version="0.1.0")
+    assert m.workflows == ()
+
+
+def test_module_workflows_accepts_tuple() -> None:
+    w = Workflow(
+        slug="welcome",
+        title="Welcome",
+        permission="demo.read",
+        triggers=(OnCreate("demo.thing.created"),),
+        actions=(EmitAudit("hello"),),
+    )
+    m = Module(name="demo", version="0.1.0", workflows=(w,))
+    assert m.workflows == (w,)
