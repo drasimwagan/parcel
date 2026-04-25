@@ -45,6 +45,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.redis = redis_async.from_url(settings.redis_url, decode_responses=True)
         app.state.settings = settings
 
+        # ARQ pool for workflow dispatch (Phase 10b). Optional at boot —
+        # tests use fake Redis URLs and inline-mode short-circuits dispatch
+        # before this is consulted, so a failure here shouldn't block the shell.
+        # `conn_retries=1` skips the default 5-retry backoff that would
+        # exceed test-lifespan timeouts.
+        from arq import create_pool
+        from arq.connections import RedisSettings
+
+        rs = RedisSettings.from_dsn(settings.redis_url)
+        rs.conn_retries = 1
+        try:
+            app.state.arq_redis = await create_pool(rs)
+        except Exception as exc:  # noqa: BLE001
+            app.state.arq_redis = None
+            log.warning("workflows.arq_pool.unavailable", reason=str(exc))
+
         from parcel_shell.ai.provider import build_provider
 
         try:
@@ -98,6 +114,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 t.cancel()
             if tasks:
                 await _asyncio.gather(*tasks, return_exceptions=True)
+            if getattr(app.state, "arq_redis", None) is not None:
+                await app.state.arq_redis.close()
             await app.state.redis.aclose()
             await engine.dispose()
             log.info("shell.shutdown")
