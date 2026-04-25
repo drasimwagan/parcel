@@ -81,9 +81,7 @@ async def test_detail_404_on_missing(authed_client: AsyncClient) -> None:
     assert r.status_code == 404
 
 
-async def test_detail_404_on_no_permission(
-    app: FastAPI, authed_client: AsyncClient
-) -> None:
+async def test_detail_404_on_no_permission(app: FastAPI, authed_client: AsyncClient) -> None:
     _mount(app, _WF_GATED)
     r = await authed_client.get("/workflows/demo/welcome")
     assert r.status_code == 404
@@ -103,9 +101,7 @@ async def test_run_404_when_no_manual_trigger(
     assert r.status_code == 404
 
 
-async def test_run_dispatches_when_manual_trigger(
-    app: FastAPI, authed_client: AsyncClient
-) -> None:
+async def test_run_dispatches_when_manual_trigger(app: FastAPI, authed_client: AsyncClient) -> None:
     _mount(app, _WF_MANUAL)
     r = await authed_client.post("/workflows/demo/manual/run", follow_redirects=False)
     assert r.status_code == 303

@@ -19,7 +19,8 @@ from parcel_shell.workflows.models import WorkflowAudit
 from parcel_shell.workflows.registry import collect_workflows
 
 _log = structlog.get_logger("parcel_shell.workflows.runner")
-_jinja = jinja2.Environment(autoescape=False, undefined=jinja2.StrictUndefined)
+# Audit messages are stored as text in `payload.audit_message`, not rendered as HTML.
+_jinja = jinja2.Environment(autoescape=False, undefined=jinja2.StrictUndefined)  # noqa: S701
 
 # Set by `app.py` lifespan. dispatch_events reads from here to find active workflows.
 _active_app: Any = None
@@ -46,9 +47,7 @@ def _matches(trigger: Any, ev: dict) -> bool:
     return False
 
 
-async def execute_action(
-    action: Any, ctx: WorkflowContext, payload: dict[str, Any]
-) -> None:
+async def execute_action(action: Any, ctx: WorkflowContext, payload: dict[str, Any]) -> None:
     """Run one action against ctx, mutating payload with the outcome."""
     if isinstance(action, EmitAudit):
         rendered = _jinja.from_string(action.message).render(
@@ -73,9 +72,7 @@ async def execute_action(
         value = action.value(ctx) if callable(action.value) else action.value
         setattr(attached, action.field, value)
         ctx.session.add(attached)
-        payload.setdefault("updates", []).append(
-            {"field": action.field, "value": repr(value)}
-        )
+        payload.setdefault("updates", []).append({"field": action.field, "value": repr(value)})
         return
 
     raise TypeError(f"Unknown action type: {type(action).__name__}")
@@ -103,7 +100,7 @@ async def run_workflow(
             changed=ev.get("changed", ()),
         )
         try:
-            for idx, action in enumerate(workflow.actions):
+            for idx, action in enumerate(workflow.actions):  # noqa: B007 - idx used in except
                 await execute_action(action, ctx, payload)
             await session.commit()
         except Exception as exc:  # noqa: BLE001

@@ -295,9 +295,7 @@ async def test_creating_a_contact_triggers_welcome_workflow(
             await asyncio.sleep(0.05)
             async with factory() as s:
                 contact = (
-                    await s.scalars(
-                        select(Contact).where(Contact.email == "ada-wf@example.com")
-                    )
+                    await s.scalars(select(Contact).where(Contact.email == "ada-wf@example.com"))
                 ).one()
                 if contact.welcomed_at is not None:
                     welcomed = True

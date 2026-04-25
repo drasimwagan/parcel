@@ -1,4 +1,3 @@
-{% set t = trigger %}
 {% if t.__class__.__name__ == "OnCreate" %}
   <span class="trigger-badge">on create &middot; <code>{{ t.event }}</code></span>
 {% elif t.__class__.__name__ == "OnUpdate" %}

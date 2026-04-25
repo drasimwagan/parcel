@@ -47,7 +47,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phases 1–9 complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, gate + sandbox, Claude generator, chat surface at <code>/ai</code>, dashboards (KPI / line / bar / table widgets), and reports (Pydantic-form-driven, headless-Chromium PDF). Phase 10 (Workflows) up next; Sandbox preview enrichment follows.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–9 + 10a complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK + CLI, gate + sandbox, Claude generator + chat, dashboards, reports (Pydantic forms + headless-Chromium PDF), and workflows (sync triggers, post-commit dispatch, audit log, read-only UI). Phase 10b (scheduled triggers + ARQ) up next; rich actions (10c) and sandbox preview enrichment (11) follow.</div>
   </div>
 </section>
 
@@ -163,9 +163,19 @@
         <span class="phase-goal">Reports + PDF generation — Pydantic-driven parameter forms, HTML preview, headless-Chromium PDF (Playwright)</span>
       </li>
       <li>
-        <span class="phase-num">10</span>
+        <span class="phase-num">10a</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Workflows engine — trigger→action chains, sync triggers (OnCreate/OnUpdate/Manual), UpdateField + EmitAudit, read-only audit UI</span>
+      </li>
+      <li>
+        <span class="phase-num">10b</span>
         <span class="phase-status next">⏭ next</span>
-        <span class="phase-goal">Workflows — state machines, triggers, actions (introduces ARQ as first-class infra)</span>
+        <span class="phase-goal">Workflows: scheduled triggers + ARQ — OnSchedule(cron), worker container, retry on top of the queue</span>
+      </li>
+      <li>
+        <span class="phase-num">10c</span>
+        <span class="phase-status pending">planned</span>
+        <span class="phase-goal">Workflows: rich actions — send_email, call_webhook, run_module_function, generate_report; richer audit UI</span>
       </li>
       <li>
         <span class="phase-num">11</span>

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -40,7 +39,7 @@ class Manual:
     event: str
 
 
-Trigger = Union[OnCreate, OnUpdate, Manual]
+Trigger = OnCreate | OnUpdate | Manual
 
 
 @dataclass(frozen=True)
@@ -66,7 +65,7 @@ class EmitAudit:
     message: str
 
 
-Action = Union[UpdateField, EmitAudit]
+Action = UpdateField | EmitAudit
 
 
 @dataclass(frozen=True, kw_only=True)
