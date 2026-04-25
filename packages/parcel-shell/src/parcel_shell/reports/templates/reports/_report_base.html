@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ report.title }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 20mm;
+      @top-center { content: "{{ report.title }}"; font-size: 9pt; color: #666; }
+      @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 9pt; color: #666; }
+    }
+    body { font-family: -apple-system, "Segoe UI", sans-serif; font-size: 10pt; color: #111; }
+    h1 { font-size: 16pt; margin: 0 0 4pt; }
+    .meta { font-size: 9pt; color: #666; margin-bottom: 12pt; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+    th, td { text-align: left; padding: 4pt 6pt; border-bottom: 1px solid #ddd; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: 600; }
+    {% block page_css %}{% endblock %}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{ report.title }}</h1>
+    <div class="meta">
+      Generated {{ generated_at.strftime("%Y-%m-%d %H:%M") }}
+      {%- if param_summary %} &middot; {{ param_summary }}{% endif %}
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+</body>
+</html>
