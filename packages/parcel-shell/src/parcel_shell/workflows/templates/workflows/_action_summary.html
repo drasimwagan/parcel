@@ -1,0 +1,8 @@
+{% set a = action %}
+{% if a.__class__.__name__ == "UpdateField" %}
+  <li>set <code>{{ a.field }}</code> = {% if a.value is callable %}<em>(callable)</em>{% else %}<code>{{ a.value }}</code>{% endif %}</li>
+{% elif a.__class__.__name__ == "EmitAudit" %}
+  <li>audit: <code>{{ a.message }}</code></li>
+{% else %}
+  <li>{{ a.__class__.__name__ }}</li>
+{% endif %}

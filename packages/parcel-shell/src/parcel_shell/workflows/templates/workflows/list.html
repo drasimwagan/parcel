@@ -1,0 +1,28 @@
+{% extends "_base.html" %}
+{% block title %}Workflows{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold mb-4">Workflows</h1>
+{% if not groups %}
+  <p class="text-sm text-gray-500">No workflows are visible to you.</p>
+{% endif %}
+{% for module_name, workflows in groups %}
+  <h2 class="text-md font-medium mt-4 mb-2">{{ module_name|capitalize }}</h2>
+  <div class="space-y-2">
+    {% for w in workflows %}
+      <a href="/workflows/{{ module_name }}/{{ w.slug }}"
+         class="block bg-white rounded shadow p-4 hover:bg-gray-50">
+        <div class="flex items-baseline justify-between">
+          <strong>{{ w.title }}</strong>
+          <code class="text-xs text-gray-500">{{ w.slug }}</code>
+        </div>
+        {% if w.description %}<p class="text-sm text-gray-600 mt-1">{{ w.description }}</p>{% endif %}
+        <div class="mt-2 flex gap-2 flex-wrap text-xs text-gray-500">
+          {% for t in w.triggers %}
+            {% include "workflows/_trigger_summary.html" %}
+          {% endfor %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endfor %}
+{% endblock %}
