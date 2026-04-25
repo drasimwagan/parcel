@@ -78,17 +78,16 @@ def _control_for(
         )
 
     if annotation is datetime:
-        return (
-            f'<input {_input_attrs(name, required=required, value=raw_value, kind="datetime-local")} '
-            'class="w-full rounded border-gray-300">'
-        )
+        attrs = _input_attrs(name, required=required, value=raw_value, kind="datetime-local")
+        return f'<input {attrs} class="w-full rounded border-gray-300">'
 
     origin = get_origin(annotation)
     if origin is Literal:
         opts = []
         for choice in get_args(annotation):
             sel = " selected" if str(raw_value) == str(choice) else ""
-            opts.append(f'<option value="{escape(str(choice))}"{sel}>{escape(str(choice))}</option>')
+            esc = escape(str(choice))
+            opts.append(f'<option value="{esc}"{sel}>{esc}</option>')
         return (
             f'<select name="{escape(name)}" class="w-full rounded border-gray-300"'
             f'{" required" if required else ""}>{"".join(opts)}</select>'
@@ -130,9 +129,7 @@ def render_form(
         label = field.title or name.replace("_", " ").capitalize()
         helper = ""
         if field.description:
-            helper = (
-                f'<p class="text-xs text-gray-500 mt-1">{escape(field.description)}</p>'
-            )
+            helper = f'<p class="text-xs text-gray-500 mt-1">{escape(field.description)}</p>'
         err_html = ""
         if name in errors and errors[name]:
             joined = "; ".join(errors[name])

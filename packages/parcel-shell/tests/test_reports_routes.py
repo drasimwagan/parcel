@@ -184,9 +184,7 @@ async def test_report_render_failure_shows_error_block(
     assert "could not be rendered" in r.text.lower()
 
 
-@pytest.mark.skipif(
-    not _weasyprint_loadable(), reason="WeasyPrint native libs not available"
-)
+@pytest.mark.skipif(not _weasyprint_loadable(), reason="WeasyPrint native libs not available")
 async def test_report_pdf_returns_pdf_bytes(authed_with_demo_report: AsyncClient) -> None:
     r = await authed_with_demo_report.get("/reports/demo/dir/pdf?q=alice")
     assert r.status_code == 200

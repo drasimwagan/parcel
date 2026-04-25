@@ -930,7 +930,7 @@ requires-dist = [
 
 [[package]]
 name = "parcel-mod-contacts"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "modules/contacts" }
 dependencies = [
     { name = "fastapi" },

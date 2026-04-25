@@ -60,9 +60,7 @@ async def _seed(session: AsyncSession) -> dict[str, Contact]:
         .values(created_at=now - timedelta(days=1))
     )
     await session.execute(
-        Contact.__table__.update()
-        .where(Contact.id == carol.id)
-        .values(created_at=now)
+        Contact.__table__.update().where(Contact.id == carol.id).values(created_at=now)
     )
     await session.commit()
     return {"alice": alice, "bob": bob, "carol": carol}
@@ -70,9 +68,7 @@ async def _seed(session: AsyncSession) -> dict[str, Contact]:
 
 async def test_directory_no_filters_returns_all(contacts_session: AsyncSession) -> None:
     await _seed(contacts_session)
-    ctx = ReportContext(
-        session=contacts_session, user_id=uuid4(), params=ContactsDirectoryParams()
-    )
+    ctx = ReportContext(session=contacts_session, user_id=uuid4(), params=ContactsDirectoryParams())
     out = await directory_data(ctx)
     assert out["total"] == 3
     names = [c.first_name for c in out["contacts"]]

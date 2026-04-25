@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import MetaData
 
-from parcel_sdk import Dashboard, KpiWidget, Module, Permission
+from parcel_sdk import Dashboard, KpiWidget, Module, Permission, Report, ReportContext
 
 
 def test_permission_is_frozen_dataclass() -> None:
@@ -69,9 +69,6 @@ def test_module_accepts_dashboards_tuple():
 def test_module_dashboards_defaults_empty():
     m = Module(name="m", version="0.1.0")
     assert m.dashboards == ()
-
-
-from parcel_sdk import Report, ReportContext
 
 
 async def _report_data(_ctx: ReportContext) -> dict[str, object]:

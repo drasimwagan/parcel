@@ -110,9 +110,7 @@ async def report_form(
     hit, perms = await _resolve_report_or_404(request, module_name, slug, db, user.id)
 
     if hit.report.params is None:
-        return RedirectResponse(
-            f"/reports/{module_name}/{slug}/render", status_code=303
-        )
+        return RedirectResponse(f"/reports/{module_name}/{slug}/render", status_code=303)
 
     values = _query_dict(request)
     _, errors = _validate_params(hit.report.params, request)
@@ -185,9 +183,7 @@ async def report_render(
         )
 
     try:
-        report_html = await _render_html_body(
-            hit=hit, params=params, db=db, user_id=user.id
-        )
+        report_html = await _render_html_body(hit=hit, params=params, db=db, user_id=user.id)
     except Exception as exc:  # noqa: BLE001
         _log.warning(
             "reports.render_failed",
@@ -233,9 +229,7 @@ async def report_pdf(
         return RedirectResponse(target, status_code=303)
 
     try:
-        body = await _render_html_body(
-            hit=hit, params=params, db=db, user_id=user.id
-        )
+        body = await _render_html_body(hit=hit, params=params, db=db, user_id=user.id)
         pdf = html_to_pdf(body, base_url=_BASE_URL)
     except Exception as exc:  # noqa: BLE001
         _log.exception(
