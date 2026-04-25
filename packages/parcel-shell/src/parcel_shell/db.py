@@ -44,6 +44,10 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     """
     session_factory: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     async with session_factory() as session:
+        # Workflows: stash the sessionmaker so the after_commit listener can
+        # spawn dispatch in a fresh session. AsyncSession.info is shared with
+        # the underlying sync Session, so the listener reads the same dict.
+        session.info["sessionmaker"] = session_factory
         try:
             yield session
         except Exception:
