@@ -25,6 +25,7 @@ __all__ = [
     "SidebarSection",
     "bind",
     "effective_permissions",
+    "emit",
     "get_session",
     "get_templates",
     "require_permission",
@@ -54,6 +55,14 @@ class ShellBinding(Protocol):
     def get_templates(self) -> Any: ...
     def sidebar_for(self, request: Any, perms: set[str]) -> list[SidebarSection]: ...
     async def effective_permissions(self, request: Any, user: Any) -> set[str]: ...
+    async def emit(
+        self,
+        session: Any,
+        event: str,
+        subject: Any,
+        *,
+        changed: tuple[str, ...] = (),
+    ) -> None: ...
 
 
 _impl: ShellBinding | None = None
@@ -101,3 +110,24 @@ def sidebar_for(request: Any, perms: set[str]) -> list[SidebarSection]:
 
 async def effective_permissions(request: Any, user: Any) -> set[str]:
     return await _need().effective_permissions(request, user)
+
+
+async def emit(
+    session: Any,
+    event: str,
+    subject: Any,
+    *,
+    changed: tuple[str, ...] = (),
+) -> None:
+    """Queue an event for workflow dispatch.
+
+    Modules call this from POST/PATCH handlers AFTER the relevant DB write
+    but BEFORE returning. The event is queued on ``session.info``; workflows
+    fire after the request session commits.
+
+    ``session`` is the AsyncSession the module already holds via
+    ``Depends(shell_api.get_session())``. ``subject`` is typically a SQLAlchemy
+    model instance whose ``.id`` is read for ``subject_id``. ``changed`` lists
+    the field names that changed (only meaningful for update events).
+    """
+    await _need().emit(session, event, subject, changed=changed)
