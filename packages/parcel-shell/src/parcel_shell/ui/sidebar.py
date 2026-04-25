@@ -9,6 +9,7 @@ __all__ = [
     "SIDEBAR",
     "SidebarItem",
     "SidebarSection",
+    "_reports_section",
     "active_href",
     "composed_sections",
     "sidebar_for",
@@ -95,14 +96,42 @@ def _dashboards_section(request, perms: set[str]) -> SidebarSection | None:
     return None
 
 
+def _reports_section(request, perms: set[str]) -> SidebarSection | None:
+    """Return a sidebar section listing every visible report.
+
+    Mirrors ``_dashboards_section`` but emits one item per report (rather than
+    a single "Reports" link), per Phase 9's spec.
+    """
+    manifest = getattr(request.app.state, "active_modules_manifest", {}) or {}
+    items: list[SidebarItem] = []
+    for module_name in sorted(manifest):
+        module = manifest[module_name]
+        for report in getattr(module, "reports", ()):
+            if report.permission in perms:
+                items.append(
+                    SidebarItem(
+                        label=f"{module_name.capitalize()}: {report.title}",
+                        href=f"/reports/{module_name}/{report.slug}",
+                        permission=None,
+                    )
+                )
+    if not items:
+        return None
+    return SidebarSection(label="Reports", items=tuple(items))
+
+
 def sidebar_for(request, perms: set[str]) -> list[SidebarSection]:
     """Convenience: compose the sidebar using the live app state."""
     module_sections = getattr(request.app.state, "active_modules_sidebar", None)
     out = composed_sections(perms, module_sections)
+    insert_at = 1 if out and out[0].label == "Overview" else 0
     dash = _dashboards_section(request, perms)
     if dash is not None:
-        insert_at = 1 if out and out[0].label == "Overview" else 0
         out.insert(insert_at, dash)
+        insert_at += 1
+    rep = _reports_section(request, perms)
+    if rep is not None:
+        out.insert(insert_at, rep)
     return out
 
 
