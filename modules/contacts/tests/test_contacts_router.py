@@ -259,3 +259,81 @@ async def test_directory_report_appears_in_sidebar(authed_contacts: AsyncClient)
     assert r.status_code == 200
     assert "Contacts: Contacts directory" in r.text
     assert "/reports/contacts/directory" in r.text
+
+
+# ── Phase 10a — workflows ────────────────────────────────────────────────
+
+
+async def test_creating_a_contact_triggers_welcome_workflow(
+    authed_contacts: AsyncClient, settings
+) -> None:
+    """POSTing a contact fires the workflow, populates welcomed_at, and writes
+    an 'ok' audit row."""
+    import asyncio
+
+    from parcel_mod_contacts.models import Contact
+    from parcel_shell.workflows.models import WorkflowAudit
+
+    eng = create_async_engine(settings.database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(eng, expire_on_commit=False, class_=AsyncSession)
+
+    async with factory() as s:
+        await s.execute(text("TRUNCATE TABLE shell.workflow_audit"))
+        await s.commit()
+
+    try:
+        r = await authed_contacts.post(
+            "/mod/contacts/",
+            data={"email": "ada-wf@example.com", "first_name": "Ada", "last_name": "Lovelace"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+
+        welcomed = False
+        audit_count = 0
+        for _ in range(40):  # up to ~2s
+            await asyncio.sleep(0.05)
+            async with factory() as s:
+                contact = (
+                    await s.scalars(
+                        select(Contact).where(Contact.email == "ada-wf@example.com")
+                    )
+                ).one()
+                if contact.welcomed_at is not None:
+                    welcomed = True
+                rows = (
+                    await s.scalars(
+                        select(WorkflowAudit).where(
+                            WorkflowAudit.workflow_slug == "new_contact_welcome"
+                        )
+                    )
+                ).all()
+                audit_count = len(rows)
+            if welcomed and audit_count >= 1:
+                break
+
+        assert welcomed, "Contact.welcomed_at was never set"
+        assert audit_count == 1
+        async with factory() as s:
+            row = (
+                await s.scalars(
+                    select(WorkflowAudit).where(
+                        WorkflowAudit.workflow_slug == "new_contact_welcome"
+                    )
+                )
+            ).one()
+            assert row.status == "ok"
+            assert row.event == "contacts.contact.created"
+            assert row.subject_id is not None
+            assert "Welcomed Ada" in row.payload.get("audit_message", "")
+    finally:
+        await eng.dispose()
+
+
+async def test_manual_run_route_returns_404_for_oncreate_only_workflow(
+    authed_contacts: AsyncClient,
+) -> None:
+    r = await authed_contacts.post(
+        "/workflows/contacts/new_contact_welcome/run", follow_redirects=False
+    )
+    assert r.status_code == 404
