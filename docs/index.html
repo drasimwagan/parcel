@@ -47,7 +47,7 @@
       <a class="btn" href="#quickstart">Quickstart</a>
       <a class="btn" href="#roadmap">Roadmap</a>
     </div>
-    <div class="stat-line"><span class="dot"></span> Phases 1–7 complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, gate + sandbox, Claude generator, chat surface at <code>/ai</code>. Phase 8 (Dashboards) up next; Reports, Workflows, and Sandbox preview enrichment follow.</div>
+    <div class="stat-line"><span class="dot"></span> Phases 1–9 complete: shell, auth + RBAC, modules, admin UI, Contacts, SDK facade + CLI, gate + sandbox, Claude generator, chat surface at <code>/ai</code>, dashboards (KPI / line / bar / table widgets), and reports (Pydantic-form-driven, headless-Chromium PDF). Phase 10 (Workflows) up next; Sandbox preview enrichment follows.</div>
   </div>
 </section>
 
@@ -81,8 +81,8 @@
   <div class="container">
     <h2>How the AI generator will work</h2>
     <p class="section-lede">
-      Landing in Phase 7. The flow is deliberately uninteresting — because "interesting" in this
-      space is how you lose people's data.
+      Shipped in Phase 7 — admins drive it from the chat surface at <code>/ai</code>. The flow is
+      deliberately uninteresting, because "interesting" in this space is how you lose people's data.
     </p>
     <ol style="color: var(--fg-dim); max-width: 60ch; padding-left: 1.2rem; line-height: 1.75;">
       <li>Admin chats with Claude about what they want.</li>
@@ -154,17 +154,17 @@
       </li>
       <li>
         <span class="phase-num">8</span>
-        <span class="phase-status next">⏭ next</span>
-        <span class="phase-goal">Dashboards — module-authored KPI cards, charts, live-query tables</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Dashboards — module-authored KPI cards, charts, live-query tables (Chart.js 4.4)</span>
       </li>
       <li>
         <span class="phase-num">9</span>
-        <span class="phase-status pending">planned</span>
-        <span class="phase-goal">Reports + PDF generation — templated, parameterised, printable/exportable (WeasyPrint)</span>
+        <span class="phase-status done">✓ done</span>
+        <span class="phase-goal">Reports + PDF generation — Pydantic-driven parameter forms, HTML preview, headless-Chromium PDF (Playwright)</span>
       </li>
       <li>
         <span class="phase-num">10</span>
-        <span class="phase-status pending">planned</span>
+        <span class="phase-status next">⏭ next</span>
         <span class="phase-goal">Workflows — state machines, triggers, actions (introduces ARQ as first-class infra)</span>
       </li>
       <li>
@@ -206,8 +206,10 @@ uv run parcel sandbox promote &lt;uuid&gt; new_mod       <span style="color: var
     <p style="margin-top: 1.5rem">Generate a module from a natural-language prompt (Phase 7b — needs <code>ANTHROPIC_API_KEY</code>):</p>
 <pre><code>uv run parcel ai generate "track invoices with number, amount, date"
 <span style="color: var(--fg-muted"># ✓ sandbox &lt;uuid&gt; at /mod-sandbox/&lt;short&gt;/</span></code></pre>
+    <p style="margin-top: 1.5rem">Phase 9 reports render PDFs through headless Chromium via <a href="https://playwright.dev/python/">Playwright</a> — install Chromium once per dev machine:</p>
+<pre><code>uv run playwright install chromium         <span style="color: var(--fg-muted)"># ~250 MB; reused by Phase 11 sandbox screenshots</span></code></pre>
     <p style="margin-top: 1.5rem">Tests use <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a> to spin up an ephemeral Postgres, so Docker must be running:</p>
-<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 259 tests, ~60s</span></code></pre>
+<pre><code>uv run pytest                              <span style="color: var(--fg-muted)"># 347 tests, ~120s</span></code></pre>
   </div>
 </section>
 
