@@ -354,3 +354,194 @@ async def test_total_kpi(ctx, widgets_session):
 ```
 
 The `modules/contacts/tests/test_contacts_dashboard.py` file in the repo is a complete reference.
+
+
+## Reports (Phase 9)
+
+A module can declare any number of **reports** — printable, parameterised
+documents that admins fill out a form for, preview as HTML, and download as
+PDF. Reports complement dashboards: dashboards are live snapshots, reports are
+point-in-time documents you can attach to a ticket or send by email.
+
+### Declaring a report
+
+```python
+# src/parcel_mod_<name>/reports/<slug>.py
+from datetime import date
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from parcel_sdk import Report, ReportContext
+
+from parcel_mod_widgets.models import Widget
+
+
+class WidgetReportParams(BaseModel):
+    color: str | None = None
+    created_after: date | None = None
+
+
+async def widget_report_data(ctx: ReportContext) -> dict[str, object]:
+    p: WidgetReportParams = ctx.params
+    stmt = select(Widget).order_by(Widget.created_at.desc())
+    if p.color:
+        stmt = stmt.where(Widget.color.ilike(f"%{p.color}%"))
+    if p.created_after:
+        stmt = stmt.where(Widget.created_at >= p.created_after)
+    rows = (await ctx.session.scalars(stmt)).all()
+    return {
+        "widgets": rows,
+        "total": len(rows),
+        "param_summary": (f"color={p.color}" if p.color else "all widgets"),
+    }
+
+
+widget_directory = Report(
+    slug="directory",                # url-safe; unique per module
+    title="Widget directory",
+    permission="widgets.read",       # one of your module's permissions
+    template="reports/directory.html",
+    data=widget_report_data,
+    params=WidgetReportParams,       # or `None` for parameter-less reports
+)
+```
+
+Wire it into your manifest:
+
+```python
+module = Module(
+    name="widgets",
+    version="0.1.0",
+    permissions=(Permission("widgets.read", "View widgets"),),
+    templates_dir=Path(__file__).parent / "templates",
+    reports=(widget_directory,),
+)
+```
+
+The shell auto-mounts three URLs as soon as the module is active:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/reports/widgets/directory` | Parameter form |
+| GET | `/reports/widgets/directory/render?<params>` | HTML preview, wrapped in admin chrome |
+| GET | `/reports/widgets/directory/pdf?<params>` | Streamed `application/pdf` download |
+
+If the user lacks `widgets.read`, all three return **404** (consistent with
+dashboards / the AI chat — never leaks existence).
+
+### Writing the template
+
+Module report templates extend the shell's `reports/_report_base.html`. The
+base template provides A4 portrait, 20mm margins, a page header with the
+report title, and a footer page counter. Override `{% block page_css %}` for
+landscape, Letter, or custom margins; override `{% block content %}` for the
+body.
+
+```html
+{% extends "reports/_report_base.html" %}
+{% block page_css %}@page { size: A4 landscape; }{% endblock %}
+{% block content %}
+  <p>Total: <strong>{{ total }}</strong> widget{{ "" if total == 1 else "s" }}</p>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Color</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for w in widgets %}
+        <tr>
+          <td>{{ w.name }}</td>
+          <td>{{ w.color }}</td>
+          <td>{{ w.created_at.strftime("%Y-%m-%d") }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+```
+
+Notes:
+
+- The base CSS is intentionally tight (10pt body, 16pt title, 9pt header/footer). Don't pull in a Tailwind print stylesheet — WeasyPrint doesn't run JS, and Tailwind's CDN is JS-only.
+- Module templates live under `<module_pkg>/templates/`. The shell prepends the directory to the Jinja loader at mount time.
+- `param_summary` returned from your data function appears in the page header next to "Generated &lt;timestamp&gt;". If you don't return one, the shell auto-builds `key=value; key=value` from the parameter model.
+
+### Parameter forms
+
+The shell auto-renders an HTML form from the Pydantic params model. Supported
+types and their controls:
+
+| Pydantic field | HTML control |
+|---|---|
+| `str`, `str \| None` | `<input type="text">` |
+| `int` | `<input type="number" step="1">` |
+| `float` | `<input type="number" step="any">` |
+| `bool` | `<input type="checkbox">` |
+| `date` | `<input type="date">` |
+| `datetime` | `<input type="datetime-local">` |
+| `Literal["a", "b"]` | `<select>` |
+| `Enum` subclass | `<select>` |
+
+Optional fields (`T | None`) drop the `required` attribute. `Field(description=...)`
+becomes the helper text under the input. For a multi-line textarea, set
+`json_schema_extra={"widget": "textarea"}`. Anything more exotic? Set
+`Report.form_template = "reports/your_form.html"` and write your own Jinja
+partial; the shell will pass `{values, errors, model}` to it.
+
+Validation errors come from Pydantic's `ValidationError`; the shell re-renders
+the form with messages grouped per field, no DB hit on `report.data`.
+
+### Permissions
+
+`Report.permission` is one of your module's own permissions. There are no
+`reports.*` shell permissions and no shell migrations — adding a report is
+purely a manifest change.
+
+If `Report.permission` doesn't match any permission your module declares,
+the shell logs `module.report.unknown_permission` at WARN on mount. The
+report still mounts, but no user can ever see it.
+
+### Testing reports
+
+Data functions are plain async coroutines. Hit them with a real session and
+the parameter model:
+
+```python
+async def test_directory_no_filters_returns_all(contacts_session):
+    # seed contacts...
+    ctx = ReportContext(
+        session=contacts_session,
+        user_id=uuid4(),
+        params=ContactsDirectoryParams(),
+    )
+    out = await directory_data(ctx)
+    assert out["total"] == 3
+```
+
+For end-to-end coverage of the route, mount the module on the live app
+fixture and `GET /reports/<module>/<slug>{,/render,/pdf}`.
+`modules/contacts/tests/test_contacts_report_directory.py` and the
+`test_directory_report_*` block in `modules/contacts/tests/test_contacts_router.py`
+are complete references.
+
+### PDF rendering
+
+The shell uses **WeasyPrint 62** to render the report template (extending
+`_report_base.html`, no admin chrome) into PDF bytes. WeasyPrint requires
+native libs (cairo, pango, gdk-pixbuf, libffi) — the Docker image installs
+them; on Windows dev machines without GTK, the shell still boots (the import
+is lazy) but the `/pdf` route returns a 303 with a flash error. Your tests
+should skip the PDF assertions when WeasyPrint can't load:
+
+```python
+def _weasyprint_loadable() -> bool:
+    try:
+        import weasyprint  # noqa: F401
+    except OSError:
+        return False
+    return True
+
+
+@pytest.mark.skipif(not _weasyprint_loadable(), reason="WeasyPrint native libs missing")
+async def test_pdf_renders(...):
+    ...
+```
