@@ -104,9 +104,7 @@ def _discover_active_manifest_sync(settings: Settings) -> dict[str, Any]:
     from parcel_shell.modules.models import InstalledModule
 
     discovered = {d.module.name: d for d in discover_modules()}
-    sync_url = settings.database_url.replace(
-        "postgresql+asyncpg://", "postgresql+psycopg2://"
-    )
+    sync_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
     engine = create_engine(sync_url, pool_pre_ping=True)
     try:
         with engine.connect() as conn:

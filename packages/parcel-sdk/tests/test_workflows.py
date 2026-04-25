@@ -10,6 +10,7 @@ from parcel_sdk import (
     EmitAudit,
     Manual,
     OnCreate,
+    OnSchedule,
     OnUpdate,
     UpdateField,
     Workflow,
@@ -108,9 +109,6 @@ def test_workflow_context_changed_defaults_empty() -> None:
         subject_id=uuid4(),
     )
     assert ctx.changed == ()
-
-
-from parcel_sdk import OnSchedule
 
 
 def test_onschedule_defaults_all_fields_to_none() -> None:

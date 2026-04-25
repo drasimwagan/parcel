@@ -68,9 +68,7 @@ async def test_run_event_dispatch_decodes_payload_and_writes_audit(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
@@ -112,9 +110,7 @@ async def test_run_scheduled_workflow_writes_synthetic_event_audit(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner

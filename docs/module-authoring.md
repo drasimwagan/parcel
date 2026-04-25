@@ -600,6 +600,7 @@ module = Module(
 | `OnCreate(event)` | The named event is emitted via `shell_api.emit`. |
 | `OnUpdate(event, when_changed=())` | Same, with optional filter — `when_changed=("email",)` fires only when "email" is in the emitted `changed` list. Empty tuple matches any update event with the right name. |
 | `Manual(event)` | Never fires from `emit`. Only via `POST /workflows/<module>/<slug>/run`, which dispatches a synthetic event with the trigger's `event` name. |
+| `OnSchedule(hour=, minute=, ...)` | The worker's cron loop fires it at the specified time. ARQ-native kwargs (each accepts `int`, `set[int]`, or `None`). Subject is always `None`; combine only with `EmitAudit` in 10b — `UpdateField` will fail at runtime since there's no row to update. |
 
 ### Actions
 
@@ -658,9 +659,50 @@ the live app: POST a contact, then poll for the `welcomed_at` column + an
 audit row with `status='ok'`. See the `test_creating_a_contact_triggers_welcome_workflow`
 test in `modules/contacts/tests/test_contacts_router.py` for the reference.
 
-### What's not in 10a
+### Cron and the worker (Phase 10b)
 
-- **`OnSchedule(cron)`** — lands in 10b alongside ARQ.
+`OnSchedule` triggers fire from a separate `worker` process, not from the
+shell. Run it alongside the shell:
+
+```bash
+docker compose up -d worker     # production / docker dev
+parcel worker                   # bare-metal dev
+```
+
+The worker discovers active modules **at boot**: install a new module
+declaring an `OnSchedule` trigger and the worker won't pick it up until
+restarted. (The shell mounts new modules immediately; only cron schedules
+need the restart.) Plan: `parcel install ./your-module && docker compose
+restart worker`.
+
+`parcel dev` sets `PARCEL_WORKFLOWS_INLINE=1` so sync triggers fire in the
+shell process — but cron triggers don't fire in inline mode. Run the worker
+container if you need to test cron locally.
+
+#### Supported `OnSchedule` kwargs
+
+| kwarg | range | meaning |
+| --- | --- | --- |
+| `second` | 0-59 | second of minute |
+| `minute` | 0-59 | minute of hour |
+| `hour` | 0-23 | hour of day |
+| `day` | 1-31 | day of month |
+| `month` | 1-12 | month |
+| `weekday` | 0-6 | Monday=0, Sunday=6 |
+
+Each accepts `int`, `set[int]`, or `None` (any).
+
+#### Examples
+
+```python
+OnSchedule(hour=9, minute=0)                       # daily at 09:00
+OnSchedule(hour=9, minute=0, weekday={0,1,2,3,4})  # weekdays at 09:00
+OnSchedule(minute={0, 15, 30, 45})                 # every 15 minutes
+```
+
+### What's not in 10b
+
 - **`send_email`, `call_webhook`, `run_module_function`, `generate_report`** actions — 10c.
 - **State machines** — workflows are chains. Use a state column + `OnUpdate` triggers if you need state-machine-like behaviour today; richer support comes later.
-- **Retry** — if an action raises, no retry. The audit row records the failure; admin can re-trigger via the manual route if the workflow declares `Manual`.
+- **Retry** — if an action raises, no retry. The audit row records the failure; admin can re-trigger via the manual route if the workflow declares `Manual`. Per-workflow `max_retries` lands in 10b-retry.
+- **Hot-reload of cron schedules.** Worker requires a restart after installing a module that declares `OnSchedule`.

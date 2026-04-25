@@ -37,15 +37,11 @@ async def test_run_scheduled_workflow_writes_daily_audit_row(
     async with sessionmaker_factory() as s:
         rows = (
             await s.scalars(
-                select(WorkflowAudit).where(
-                    WorkflowAudit.workflow_slug == "daily_audit_summary"
-                )
+                select(WorkflowAudit).where(WorkflowAudit.workflow_slug == "daily_audit_summary")
             )
         ).all()
         assert len(rows) == 1
         assert rows[0].event == "contacts.daily_audit_summary.scheduled"
         assert rows[0].subject_id is None
         assert rows[0].status == "ok"
-        assert "contacts.daily_audit_summary.scheduled" in rows[0].payload.get(
-            "audit_message", ""
-        )
+        assert "contacts.daily_audit_summary.scheduled" in rows[0].payload.get("audit_message", "")

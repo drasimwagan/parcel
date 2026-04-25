@@ -15,12 +15,8 @@ pytestmark = pytest.mark.asyncio
 
 
 def test_encode_event_with_no_subject() -> None:
-    out = encode_events(
-        [{"event": "x.y", "subject": None, "subject_id": None, "changed": ()}]
-    )
-    assert out == [
-        {"event": "x.y", "subject_ref": None, "subject_id": None, "changed": []}
-    ]
+    out = encode_events([{"event": "x.y", "subject": None, "subject_id": None, "changed": ()}])
+    assert out == [{"event": "x.y", "subject_ref": None, "subject_id": None, "changed": []}]
 
 
 def test_encode_event_with_subject_carries_class_path_and_id() -> None:

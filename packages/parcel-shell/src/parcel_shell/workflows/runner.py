@@ -35,7 +35,7 @@ def set_active_app(app: Any) -> None:
 
 def _matches(trigger: Any, ev: dict) -> bool:
     """Does `trigger` match event dict `ev` (`{event, subject, subject_id, changed}`)?"""
-    if isinstance(trigger, (Manual, OnSchedule)):
+    if isinstance(trigger, Manual | OnSchedule):
         # Manual fires only via POST /run; OnSchedule fires only from the worker's cron loop.
         return False
     if isinstance(trigger, OnCreate):

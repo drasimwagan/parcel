@@ -83,9 +83,7 @@ class OnSchedule:
             members = value if isinstance(value, set) else {value}
             for v in members:
                 if not isinstance(v, int) or v < lo or v > hi:
-                    raise ValueError(
-                        f"OnSchedule {name}={value!r} out of range [{lo}, {hi}]"
-                    )
+                    raise ValueError(f"OnSchedule {name}={value!r} out of range [{lo}, {hi}]")
 
 
 Trigger = OnCreate | OnUpdate | Manual | OnSchedule
