@@ -166,9 +166,7 @@ class GenerateReport:
     _required_capability: ClassVar[str | None] = None
 
 
-Action = (
-    UpdateField | EmitAudit | SendEmail | CallWebhook | RunModuleFunction | GenerateReport
-)
+Action = UpdateField | EmitAudit | SendEmail | CallWebhook | RunModuleFunction | GenerateReport
 
 
 @dataclass(frozen=True, kw_only=True)

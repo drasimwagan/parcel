@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
@@ -111,12 +113,13 @@ async def test_run_dispatches_when_manual_trigger(app: FastAPI, authed_client: A
 # ---- Phase 10c — retry + filter --------------------------------------------
 
 
-import uuid
-
-
 async def _seed_audit_row(
-    db_session, module: str, slug: str, status: str, event: str = "demo.thing.created",
-    attempt: int = 1
+    db_session,
+    module: str,
+    slug: str,
+    status: str,
+    event: str = "demo.thing.created",
+    attempt: int = 1,
 ) -> uuid.UUID:
     """Insert a workflow_audit row and return its id."""
     from parcel_shell.workflows.models import WorkflowAudit
@@ -142,9 +145,7 @@ async def test_retry_404_on_unknown_audit(authed_client, app: FastAPI) -> None:
     assert r.status_code == 404
 
 
-async def test_retry_404_on_ok_audit(
-    authed_client, app: FastAPI, db_session
-) -> None:
+async def test_retry_404_on_ok_audit(authed_client, app: FastAPI, db_session) -> None:
     _mount(app, _WF_OK)
     aid = await _seed_audit_row(db_session, "demo", "welcome", "ok")
     await db_session.commit()
@@ -169,9 +170,7 @@ async def test_retry_303_on_error_audit_inline_mode(
     _mount(app, _WF_OK)
     aid = await _seed_audit_row(db_session, "demo", "welcome", "error", attempt=1)
     await db_session.commit()
-    r = await authed_client.post(
-        f"/workflows/demo/welcome/retry/{aid}", follow_redirects=False
-    )
+    r = await authed_client.post(f"/workflows/demo/welcome/retry/{aid}", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"] == "/workflows/demo/welcome"
 
@@ -194,9 +193,7 @@ async def test_detail_filter_status_only_returns_matching(
     assert "ev.a" not in r_err.text
 
 
-async def test_detail_filter_event_substring(
-    authed_client, app: FastAPI, db_session
-) -> None:
+async def test_detail_filter_event_substring(authed_client, app: FastAPI, db_session) -> None:
     _mount(app, _WF_OK)
     await _seed_audit_row(db_session, "demo", "welcome", "ok", event="alpha.created")
     await _seed_audit_row(db_session, "demo", "welcome", "ok", event="beta.created")

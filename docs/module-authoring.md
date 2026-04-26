@@ -604,10 +604,61 @@ module = Module(
 
 ### Actions
 
-| Action | Behaviour |
-|---|---|
-| `UpdateField(field, value)` | Re-fetches the trigger's subject by id in the workflow's session, sets `field` to `value` (literal or `Callable[[WorkflowContext], Any]`), commits the new session. |
-| `EmitAudit(message)` | Renders the Jinja template against `{subject, event, ctx}` and stores the result in the audit row's `payload.audit_message`. No side effect beyond the audit row — purely for human readability. |
+| Action | Required capability | Behaviour |
+|---|---|---|
+| `UpdateField(field, value)` | — | Re-fetches the trigger's subject by id, sets `field` to `value` (literal or `Callable[[WorkflowContext], Any]`), commits. |
+| `EmitAudit(message)` | — | Renders Jinja against `{subject, event, ctx}` into `payload.audit_message`. No side effect. |
+| `SendEmail(to, subject, body)` | `network` | Sends a plain-text email via the shell's configured SMTP host (`PARCEL_SMTP_*` env vars). Raises if SMTP is not configured. |
+| `CallWebhook(url, method="POST", headers={}, body=None)` | `network` | HTTP request via `httpx.AsyncClient`. Non-2xx response raises (and counts toward retry budget). Captures status + truncated response in payload. |
+| `RunModuleFunction(module, function)` | — | Looks up `Module.workflow_functions[function]` and `await`s it with the `WorkflowContext`. Stores the return value (truncated to 1 KiB string) in `payload.function_calls`. |
+| `GenerateReport(module, slug, params={})` | — | Renders a Phase-9 report's HTML body into `payload.reports`. Useful as a precursor to `SendEmail` (future) or `CallWebhook` for sending dashboards out. |
+
+#### Capability declaration
+
+Actions that need network egress (`SendEmail`, `CallWebhook`) declare a class-level
+`_required_capability = "network"`. When a workflow uses such an action, the
+module must declare matching capabilities on its `Module(...)` manifest:
+
+```python
+module = Module(
+    name="contacts",
+    capabilities=("network",),  # <- because workflows use CallWebhook / SendEmail
+    workflows=(my_webhook_workflow,),
+    ...
+)
+```
+
+The shell logs `module.workflow.missing_capability` at WARN on mount when an
+action's capability isn't declared. The workflow still mounts — the warning
+exists to surface the gap before Phase 11's static-analysis gate enforces it
+for AI-generated modules.
+
+#### `RunModuleFunction` example
+
+```python
+# workflows.py
+async def archive_old(ctx: WorkflowContext) -> str:
+    # Custom logic with full SDK access. Use ctx.session for queries.
+    n = await ctx.session.scalar(select(func.count()).select_from(MyModel))
+    return f"checked {n} rows"
+
+
+archive_workflow = Workflow(
+    slug="nightly_archive",
+    title="Nightly archive",
+    permission="things.read",
+    triggers=(OnSchedule(hour=3, minute=0),),
+    actions=(RunModuleFunction(module="things", function="archive_old"),),
+)
+
+
+# __init__.py
+module = Module(
+    ...,
+    workflows=(archive_workflow,),
+    workflow_functions={"archive_old": archive_old},
+)
+```
 
 ### Wiring `emit`
 

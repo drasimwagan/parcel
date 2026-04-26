@@ -52,5 +52,8 @@ audit_log_via_function = Workflow(
     permission="contacts.read",
     triggers=(OnCreate("contacts.contact.created"),),
     actions=(RunModuleFunction(module="contacts", function="audit_log"),),
-    description="Phase 10c reference: invokes contacts.workflow_functions['audit_log'] on contact create.",
+    description=(
+        "Phase 10c reference: invokes contacts.workflow_functions['audit_log'] "
+        "on contact create."
+    ),
 )

@@ -22,9 +22,7 @@ async def execute_run_module_function(
         raise RuntimeError(f"RunModuleFunction: module {action.module!r} not active")
     fn = getattr(module, "workflow_functions", {}).get(action.function)
     if fn is None:
-        raise RuntimeError(
-            f"RunModuleFunction: {action.module}.{action.function} not registered"
-        )
+        raise RuntimeError(f"RunModuleFunction: {action.module}.{action.function} not registered")
     ret = await fn(ctx)
     payload.setdefault("function_calls", []).append(
         {

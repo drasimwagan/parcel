@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -46,15 +45,11 @@ async def test_send_email_raises_when_smtp_not_configured(monkeypatch) -> None:
         }
     )
     get_settings.cache_clear()
-    monkeypatch.setattr(
-        "parcel_shell.workflows.actions.email.get_settings", lambda: fake
-    )
+    monkeypatch.setattr("parcel_shell.workflows.actions.email.get_settings", lambda: fake)
 
     payload: dict[str, Any] = {}
     with pytest.raises(RuntimeError, match="SMTP not configured"):
-        await execute_send_email(
-            SendEmail(to="x@y.com", subject="s", body="b"), _ctx(), payload
-        )
+        await execute_send_email(SendEmail(to="x@y.com", subject="s", body="b"), _ctx(), payload)
 
 
 async def test_send_email_calls_smtp_when_configured(monkeypatch) -> None:
@@ -72,9 +67,7 @@ async def test_send_email_calls_smtp_when_configured(monkeypatch) -> None:
         }
     )
     get_settings.cache_clear()
-    monkeypatch.setattr(
-        "parcel_shell.workflows.actions.email.get_settings", lambda: fake
-    )
+    monkeypatch.setattr("parcel_shell.workflows.actions.email.get_settings", lambda: fake)
 
     sent: list[Any] = []
 
@@ -128,9 +121,7 @@ async def test_call_webhook_posts_and_captures_response(monkeypatch) -> None:
             kwargs["transport"] = transport
             super().__init__(*args, **kwargs)
 
-    monkeypatch.setattr(
-        "parcel_shell.workflows.actions.webhook.httpx.AsyncClient", _PatchedClient
-    )
+    monkeypatch.setattr("parcel_shell.workflows.actions.webhook.httpx.AsyncClient", _PatchedClient)
 
     payload: dict[str, Any] = {}
     await execute_call_webhook(
@@ -148,9 +139,7 @@ async def test_call_webhook_raises_on_non_2xx(monkeypatch) -> None:
 
     from parcel_shell.workflows.actions.webhook import execute_call_webhook
 
-    transport = httpx.MockTransport(
-        lambda request: httpx.Response(500, text="boom")
-    )
+    transport = httpx.MockTransport(lambda request: httpx.Response(500, text="boom"))
     real_client = httpx.AsyncClient
 
     class _PatchedClient(real_client):
@@ -158,9 +147,7 @@ async def test_call_webhook_raises_on_non_2xx(monkeypatch) -> None:
             kwargs["transport"] = transport
             super().__init__(*args, **kwargs)
 
-    monkeypatch.setattr(
-        "parcel_shell.workflows.actions.webhook.httpx.AsyncClient", _PatchedClient
-    )
+    monkeypatch.setattr("parcel_shell.workflows.actions.webhook.httpx.AsyncClient", _PatchedClient)
 
     with pytest.raises(httpx.HTTPStatusError):
         await execute_call_webhook(
@@ -175,7 +162,6 @@ async def test_call_webhook_raises_on_non_2xx(monkeypatch) -> None:
 
 async def test_run_module_function_invokes_registered(monkeypatch) -> None:
     from parcel_sdk import Module
-
     from parcel_shell.workflows.actions.module_function import (
         execute_run_module_function,
     )
@@ -186,9 +172,7 @@ async def test_run_module_function_invokes_registered(monkeypatch) -> None:
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
             active_modules_manifest={
-                "demo": Module(
-                    name="demo", version="0.1.0", workflow_functions={"audit": _audit}
-                )
+                "demo": Module(name="demo", version="0.1.0", workflow_functions={"audit": _audit})
             }
         )
     )
@@ -221,7 +205,6 @@ async def test_run_module_function_raises_on_unknown_module(monkeypatch) -> None
 
 async def test_run_module_function_raises_on_unknown_function(monkeypatch) -> None:
     from parcel_sdk import Module
-
     from parcel_shell.workflows.actions.module_function import (
         execute_run_module_function,
     )
@@ -255,6 +238,4 @@ async def test_generate_report_raises_on_missing_report(monkeypatch) -> None:
     monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
 
     with pytest.raises(RuntimeError, match="not found"):
-        await execute_generate_report(
-            GenerateReport(module="nope", slug="none"), _ctx(), {}
-        )
+        await execute_generate_report(GenerateReport(module="nope", slug="none"), _ctx(), {})

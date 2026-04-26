@@ -190,9 +190,7 @@ async def workflow_retry(
     }
 
     if os.environ.get("PARCEL_WORKFLOWS_INLINE"):
-        await run_workflow(
-            module_name, hit.workflow, ev, sessionmaker, attempt=next_attempt
-        )
+        await run_workflow(module_name, hit.workflow, ev, sessionmaker, attempt=next_attempt)
     else:
         from parcel_shell.workflows.serialize import encode_events
 
