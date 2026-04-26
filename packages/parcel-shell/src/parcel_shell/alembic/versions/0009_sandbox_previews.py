@@ -82,7 +82,7 @@ def upgrade() -> None:
         sa.text(
             "INSERT INTO shell.users (id, email, password_hash, is_active) "
             "VALUES (:id, :email, :hash, true) "
-            "ON CONFLICT (id) DO NOTHING"
+            "ON CONFLICT DO NOTHING"
         ),
         {"id": PREVIEW_USER_ID, "email": PREVIEW_USER_EMAIL, "hash": _RANDOM_ARGON2},
     )
@@ -119,6 +119,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
+    # user_roles rows for this user are removed implicitly by the FK's
+    # ON DELETE CASCADE — that's why the role DELETE that follows is safe.
     bind.execute(
         sa.text("DELETE FROM shell.users WHERE id = :id"),
         {"id": PREVIEW_USER_ID},
