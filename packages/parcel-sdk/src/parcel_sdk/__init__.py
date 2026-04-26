@@ -1,7 +1,6 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 10c surface: Phase 10b-retry + rich actions (SendEmail, CallWebhook,
-RunModuleFunction, GenerateReport).
+Phase 11 surface: Phase 10c + PreviewRoute for sandbox screenshot rendering.
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ from parcel_sdk.dashboards import (
     table_query,
 )
 from parcel_sdk.module import Module, Permission
+from parcel_sdk.previews import PreviewRoute
 from parcel_sdk.reports import Report, ReportContext
 from parcel_sdk.sidebar import SidebarItem
 from parcel_sdk.workflows import (
@@ -64,6 +64,7 @@ __all__ = [
     "OnSchedule",
     "OnUpdate",
     "Permission",
+    "PreviewRoute",
     "Report",
     "ReportContext",
     "RunModuleFunction",
@@ -84,4 +85,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.9.0"
+__version__ = "0.10.0"
