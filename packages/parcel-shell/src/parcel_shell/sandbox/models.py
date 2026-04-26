@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from parcel_shell.db import ShellBase
 
 SandboxStatus = Literal["active", "dismissed", "promoted"]
+PreviewStatus = Literal["pending", "rendering", "ready", "failed"]
 
 
 class SandboxInstall(ShellBase):
@@ -29,3 +30,9 @@ class SandboxInstall(ShellBase):
     status: Mapped[SandboxStatus] = mapped_column(Text, nullable=False, default="active")
     promoted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     promoted_to_name: Mapped[str | None] = mapped_column(Text)
+    # Phase 11 — preview rendering state.
+    preview_status: Mapped[PreviewStatus] = mapped_column(Text, nullable=False, default="pending")
+    preview_error: Mapped[str | None] = mapped_column(Text)
+    previews: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list)
+    preview_started_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    preview_finished_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
