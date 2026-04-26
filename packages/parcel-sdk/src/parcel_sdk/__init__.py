@@ -1,6 +1,6 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 10b surface: Phase 10a + OnSchedule trigger (cron via ARQ).
+Phase 10b-retry surface: Phase 10b + per-workflow retry semantics.
 """
 
 from __future__ import annotations
@@ -75,4 +75,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.7.0"
+__version__ = "0.8.0"

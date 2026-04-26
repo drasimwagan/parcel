@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import jinja2
@@ -31,6 +32,16 @@ def set_active_app(app: Any) -> None:
     """Called once at shell startup; runner uses it to discover workflows."""
     global _active_app
     _active_app = app
+
+
+@dataclass(frozen=True)
+class WorkflowOutcome:
+    """Result of a single `run_workflow` invocation, returned to callers
+    (worker handlers) so they can decide whether to retry."""
+
+    status: str  # "ok" | "error"
+    error_message: str | None
+    failed_action_index: int | None
 
 
 def _matches(trigger: Any, ev: dict) -> bool:
@@ -85,8 +96,15 @@ async def run_workflow(
     workflow: Workflow,
     ev: dict,
     sessionmaker: async_sessionmaker,
-) -> None:
-    """Execute one workflow's chain in a single transaction; audit the outcome."""
+    *,
+    attempt: int = 1,
+) -> WorkflowOutcome:
+    """Execute one workflow's chain in a single transaction; audit the outcome.
+
+    Returns a :class:`WorkflowOutcome` so callers (worker handlers) can decide
+    whether to retry. The audit row is written internally in a separate session
+    and survives any chain rollback; `attempt` is recorded on it.
+    """
     payload: dict[str, Any] = {}
     failed_idx: int | None = None
     error_message: str | None = None
@@ -130,9 +148,16 @@ async def run_workflow(
                 error_message=error_message,
                 failed_action_index=failed_idx,
                 payload=payload,
+                attempt=attempt,
             )
         )
         await audit_session.commit()
+
+    return WorkflowOutcome(
+        status=status,
+        error_message=error_message,
+        failed_action_index=failed_idx,
+    )
 
 
 async def dispatch_events(events: list[dict], sessionmaker: async_sessionmaker) -> None:

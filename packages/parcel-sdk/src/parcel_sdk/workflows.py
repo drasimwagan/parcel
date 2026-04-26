@@ -125,6 +125,16 @@ class Workflow:
     triggers: tuple[Trigger, ...]
     actions: tuple[Action, ...]
     description: str = ""
+    max_retries: int = 0
+    retry_backoff_seconds: int = 30
+
+    def __post_init__(self) -> None:
+        if self.max_retries < 0:
+            raise ValueError(f"Workflow max_retries={self.max_retries} must be >= 0")
+        if self.retry_backoff_seconds < 1:
+            raise ValueError(
+                f"Workflow retry_backoff_seconds={self.retry_backoff_seconds} must be >= 1"
+            )
 
 
 @dataclass(frozen=True)

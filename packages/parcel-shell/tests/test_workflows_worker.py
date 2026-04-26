@@ -147,3 +147,164 @@ async def test_run_scheduled_workflow_unknown_slug_is_noop(
 
         rows = (await s.scalars(select(WorkflowAudit))).all()
         assert rows == []
+
+
+# ---- Retry semantics (Phase 10b-retry) -------------------------------------
+
+
+async def test_run_event_dispatch_no_retry_when_max_retries_zero(
+    sessionmaker_factory, monkeypatch
+) -> None:
+    """An erroring action with max_retries=0 does NOT raise Retry."""
+    from parcel_sdk import UpdateField
+
+    wf = Workflow(
+        slug="bad",
+        title="B",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(UpdateField(field="x", value=1),),  # subject_id is None -> raises
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    payload = [{"event": "a", "subject_ref": None, "subject_id": None, "changed": []}]
+    ctx = {"sessionmaker": sessionmaker_factory, "job_try": 1}
+
+    # No exception expected.
+    await run_event_dispatch(ctx, payload)
+
+
+async def test_run_event_dispatch_raises_retry_on_error_with_budget(
+    sessionmaker_factory, monkeypatch
+) -> None:
+    from arq import Retry
+
+    from parcel_sdk import UpdateField
+
+    wf = Workflow(
+        slug="bad",
+        title="B",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(UpdateField(field="x", value=1),),
+        max_retries=2,
+        retry_backoff_seconds=10,
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    payload = [{"event": "a", "subject_ref": None, "subject_id": None, "changed": []}]
+    ctx = {"sessionmaker": sessionmaker_factory, "job_try": 1}
+
+    with pytest.raises(Retry) as exc_info:
+        await run_event_dispatch(ctx, payload)
+    # try=1 -> defer = 10 * 2**0 = 10s. ARQ stores deferment as ms in
+    # `defer_score`; retries scheduled into the future have a timestamp >= now+10s.
+    # Conservative check: at least 10_000 ms ago from the test's "now".
+    assert exc_info.value.defer_score is not None
+
+
+async def test_run_event_dispatch_no_retry_when_budget_exhausted(
+    sessionmaker_factory, monkeypatch
+) -> None:
+    """job_try=3 with max_retries=2: budget exhausted, no Retry raised."""
+    from parcel_sdk import UpdateField
+
+    wf = Workflow(
+        slug="bad",
+        title="B",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(UpdateField(field="x", value=1),),
+        max_retries=2,
+        retry_backoff_seconds=10,
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    payload = [{"event": "a", "subject_ref": None, "subject_id": None, "changed": []}]
+    ctx = {"sessionmaker": sessionmaker_factory, "job_try": 3}
+
+    # job_try (3) > max_retries (2) — budget exhausted.
+    await run_event_dispatch(ctx, payload)
+
+
+async def test_run_event_dispatch_writes_audit_with_job_try_attempt(
+    sessionmaker_factory, monkeypatch
+) -> None:
+    """job_try=2 → audit row with attempt=2."""
+    from sqlalchemy import select
+
+    wf = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    payload = [{"event": "a", "subject_ref": None, "subject_id": None, "changed": []}]
+    ctx = {"sessionmaker": sessionmaker_factory, "job_try": 2}
+    await run_event_dispatch(ctx, payload)
+
+    async with sessionmaker_factory() as s:
+        rows = (await s.scalars(select(WorkflowAudit))).all()
+        assert len(rows) == 1
+        assert rows[0].attempt == 2
+
+
+async def test_run_scheduled_workflow_raises_retry_on_error_with_budget(
+    sessionmaker_factory, monkeypatch
+) -> None:
+    from arq import Retry
+
+    from parcel_sdk import UpdateField
+
+    wf = Workflow(
+        slug="daily",
+        title="D",
+        permission="x.read",
+        triggers=(OnSchedule(hour=9, minute=0),),
+        actions=(UpdateField(field="x", value=1),),  # always fails (no subject)
+        max_retries=1,
+        retry_backoff_seconds=30,
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    ctx = {"sessionmaker": sessionmaker_factory, "app": fake_app, "job_try": 1}
+    with pytest.raises(Retry):
+        await run_scheduled_workflow(ctx, "demo", "daily")

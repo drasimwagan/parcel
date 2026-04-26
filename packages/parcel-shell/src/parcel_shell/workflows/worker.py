@@ -14,10 +14,12 @@ to pick up newly-installed ``OnSchedule`` workflows.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 
 import structlog
+from arq import Retry
 from arq.connections import RedisSettings
 from arq.cron import cron
 from sqlalchemy import create_engine, select
@@ -26,7 +28,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from parcel_sdk import OnSchedule
 from parcel_shell.config import Settings, get_settings
 from parcel_shell.workflows.registry import collect_workflows, find_workflow
-from parcel_shell.workflows.runner import dispatch_events, run_workflow, set_active_app
+from parcel_shell.workflows.runner import (
+    _matches,
+    run_workflow,
+    set_active_app,
+)
 from parcel_shell.workflows.serialize import decode_event
 
 _log = structlog.get_logger("parcel_shell.workflows.worker")
@@ -36,23 +42,37 @@ _log = structlog.get_logger("parcel_shell.workflows.worker")
 
 
 async def run_event_dispatch(ctx: dict, payload: list[dict[str, Any]]) -> None:
-    """Re-fetch subjects, then run dispatch_events.
+    """Re-fetch subjects, run matching workflows, raise arq.Retry on error+budget.
 
-    `ctx` is ARQ's per-job context; `ctx["sessionmaker"]` is set by
-    :func:`_startup`.
+    Reads `ctx["job_try"]` (ARQ-provided) and passes it as `attempt` to
+    `run_workflow`. As soon as ANY workflow errors with retry budget remaining,
+    raises `Retry(defer=...)` and ARQ re-enqueues with `job_try += 1`.
+
+    Multi-event payloads with mixed success/failure will re-run successful
+    workflows on retry — known imprecision (see spec "Risks").
     """
     sessionmaker = ctx["sessionmaker"]
+    job_try = ctx.get("job_try", 1)
+
     async with sessionmaker() as session:
         events = [await decode_event(p, session) for p in payload]
-    await dispatch_events(events, sessionmaker)
+
+    from parcel_shell.workflows.runner import _active_app  # noqa: PLC0415
+
+    for ev in events:
+        registered = collect_workflows(_active_app)
+        for r in registered:
+            if any(_matches(t, ev) for t in r.workflow.triggers):
+                outcome = await run_workflow(
+                    r.module_name, r.workflow, ev, sessionmaker, attempt=job_try
+                )
+                if outcome.status == "error" and job_try <= r.workflow.max_retries:
+                    delay = r.workflow.retry_backoff_seconds * 2 ** (job_try - 1)
+                    raise Retry(defer=timedelta(seconds=delay))
 
 
 async def run_scheduled_workflow(ctx: dict, module_name: str, slug: str) -> None:
-    """Cron-fired workflow run.
-
-    Builds a synthetic event with `subject=None`; delegates to
-    :func:`run_workflow` which writes the audit row.
-    """
+    """Cron-fired workflow run; raise arq.Retry on error+budget."""
     sessionmaker = ctx["sessionmaker"]
     fake_app = ctx["app"]
     registered = collect_workflows(fake_app)
@@ -60,13 +80,18 @@ async def run_scheduled_workflow(ctx: dict, module_name: str, slug: str) -> None
     if hit is None:
         _log.warning("workflows.scheduled.unknown", module=module_name, slug=slug)
         return
+
+    job_try = ctx.get("job_try", 1)
     ev = {
         "event": f"{module_name}.{slug}.scheduled",
         "subject": None,
         "subject_id": None,
         "changed": (),
     }
-    await run_workflow(module_name, hit.workflow, ev, sessionmaker)
+    outcome = await run_workflow(module_name, hit.workflow, ev, sessionmaker, attempt=job_try)
+    if outcome.status == "error" and job_try <= hit.workflow.max_retries:
+        delay = hit.workflow.retry_backoff_seconds * 2 ** (job_try - 1)
+        raise Retry(defer=timedelta(seconds=delay))
 
 
 # ---- Lifecycle hooks -------------------------------------------------------

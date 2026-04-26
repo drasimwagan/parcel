@@ -181,3 +181,83 @@ def test_matches_onschedule_never_via_event() -> None:
         OnSchedule(hour=9, minute=0),
         {"event": "demo.thing.scheduled", "changed": ()},
     )
+
+
+async def test_run_workflow_returns_workflow_outcome_on_success(
+    sessionmaker_factory,
+) -> None:
+    from parcel_shell.workflows.runner import WorkflowOutcome
+
+    wf = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    ev = {"event": "a", "subject": None, "subject_id": None, "changed": ()}
+    outcome = await run_workflow("demo", wf, ev, sessionmaker_factory)
+    assert isinstance(outcome, WorkflowOutcome)
+    assert outcome.status == "ok"
+    assert outcome.error_message is None
+    assert outcome.failed_action_index is None
+
+
+async def test_run_workflow_returns_workflow_outcome_on_error(
+    sessionmaker_factory,
+) -> None:
+    from parcel_shell.workflows.runner import WorkflowOutcome
+
+    wf = Workflow(
+        slug="bad",
+        title="B",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(
+            EmitAudit("first"),
+            UpdateField(field="x", value=1),
+        ),
+    )
+    ev = {"event": "a", "subject": None, "subject_id": None, "changed": ()}
+    outcome = await run_workflow("demo", wf, ev, sessionmaker_factory)
+    assert isinstance(outcome, WorkflowOutcome)
+    assert outcome.status == "error"
+    assert outcome.failed_action_index == 1
+    assert outcome.error_message is not None and "subject_id" in outcome.error_message
+
+
+async def test_run_workflow_writes_attempt_to_audit(sessionmaker_factory) -> None:
+    """Calling with attempt=2 stores 2 in the audit row."""
+    from sqlalchemy import select
+
+    wf = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    ev = {"event": "a", "subject": None, "subject_id": None, "changed": ()}
+    await run_workflow("demo", wf, ev, sessionmaker_factory, attempt=2)
+
+    async with sessionmaker_factory() as s:
+        row = (await s.scalars(select(WorkflowAudit))).one()
+        assert row.attempt == 2
+
+
+async def test_run_workflow_attempt_defaults_to_1(sessionmaker_factory) -> None:
+    from sqlalchemy import select
+
+    wf = Workflow(
+        slug="t",
+        title="T",
+        permission="x.read",
+        triggers=(OnCreate("a"),),
+        actions=(EmitAudit("hi"),),
+    )
+    ev = {"event": "a", "subject": None, "subject_id": None, "changed": ()}
+    await run_workflow("demo", wf, ev, sessionmaker_factory)
+
+    async with sessionmaker_factory() as s:
+        row = (await s.scalars(select(WorkflowAudit))).one()
+        assert row.attempt == 1

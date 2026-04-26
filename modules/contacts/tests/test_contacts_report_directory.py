@@ -108,7 +108,7 @@ async def test_directory_created_before_exclusive(
     contacts_session: AsyncSession,
 ) -> None:
     await _seed(contacts_session)
-    today = date.today()
+    today = datetime.now(tz=UTC).date()
     ctx = ReportContext(
         session=contacts_session,
         user_id=uuid4(),
