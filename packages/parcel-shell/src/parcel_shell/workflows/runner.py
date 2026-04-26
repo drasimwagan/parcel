@@ -8,11 +8,15 @@ import structlog
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from parcel_sdk import (
+    CallWebhook,
     EmitAudit,
+    GenerateReport,
     Manual,
     OnCreate,
     OnSchedule,
     OnUpdate,
+    RunModuleFunction,
+    SendEmail,
     UpdateField,
     Workflow,
     WorkflowContext,
@@ -86,6 +90,34 @@ async def execute_action(action: Any, ctx: WorkflowContext, payload: dict[str, A
         setattr(attached, action.field, value)
         ctx.session.add(attached)
         payload.setdefault("updates", []).append({"field": action.field, "value": repr(value)})
+        return
+
+    # Phase 10c rich-action dispatch. Late imports inside each branch to avoid
+    # importing httpx / smtplib at SDK-test time when those branches don't fire.
+    if isinstance(action, SendEmail):
+        from parcel_shell.workflows.actions.email import execute_send_email
+
+        await execute_send_email(action, ctx, payload)
+        return
+
+    if isinstance(action, CallWebhook):
+        from parcel_shell.workflows.actions.webhook import execute_call_webhook
+
+        await execute_call_webhook(action, ctx, payload)
+        return
+
+    if isinstance(action, RunModuleFunction):
+        from parcel_shell.workflows.actions.module_function import (
+            execute_run_module_function,
+        )
+
+        await execute_run_module_function(action, ctx, payload)
+        return
+
+    if isinstance(action, GenerateReport):
+        from parcel_shell.workflows.actions.report import execute_generate_report
+
+        await execute_generate_report(action, ctx, payload)
         return
 
     raise TypeError(f"Unknown action type: {type(action).__name__}")
