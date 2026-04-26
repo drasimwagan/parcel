@@ -44,7 +44,8 @@ POST /sandbox  (zip upload)
 render_sandbox_previews(ctx, sandbox_id):
    row = SandboxInstall  → preview_status='rendering', preview_started_at=now()
    identity.sync_preview_role(sessionmaker)
-   cookie_value = identity.mint_cookie(settings)
+   session_id, cookie_value = identity.mint_session_cookie(sessionmaker, settings)
+   try:
    loaded = sandbox_service.load_sandbox_module(...)    # idempotent re-load
    loaded.module.metadata.schema = row.schema_name
    if seed_runner.has_seed(loaded):
@@ -66,6 +67,8 @@ render_sandbox_previews(ctx, sandbox_id):
    row.previews = entries
    row.preview_status = 'ready' if any(ok) else 'failed'
    row.preview_finished_at = now()
+   finally:
+       identity.revoke_session(sessionmaker, session_id)
 ```
 
 ### Inline mode
@@ -148,16 +151,16 @@ Backfills existing rows to `preview_status='pending'`. They never auto-render �
 
 The same migration seeds:
 
-- One `User` row at `sandbox-preview@parcel.local`, `id = '00000000-0000-0000-0000-000000000011'`, `is_active=False` (cannot log in via the form), `is_builtin=True`, password hash set to a random 32-byte Argon2 (cookie-only auth, never used).
+- One `User` row at `sandbox-preview@parcel.local`, `id = '00000000-0000-0000-0000-000000000011'`, `is_active=True`, password hash set to a random Argon2 hash that no human knows. `is_active=True` is required because `auth.dependencies.current_user` rejects inactive users; login is prevented by the unknown password (the form has no other escape hatch). The `User` row has no `is_builtin` column — protection is via the special-cased email in admin endpoints.
 - One `Role` at `name='sandbox-preview'`, `is_builtin=True`, `description='Used by the sandbox preview renderer to drive headless Chromium'`.
-- One `UserRole` row binding the user to the role.
-- Role-permission rows are NOT seeded by this migration — they're synced at render time by `identity.sync_preview_role` against the live `Permission` table.
+- One `user_roles` row binding the user to the role.
+- Role-permission rows are NOT seeded by this migration — they're synced at render time by `identity.sync_preview_role` against the live `permissions` table (which stores permissions by `name` text PK; `role_permissions` joins by `permission_name`).
 
 The fixed UUID `00000000-0000-0000-0000-000000000011` is documented in `CLAUDE.md` and referenced by the runner so cookie minting doesn't need a DB lookup.
 
 ### `sandbox-preview` invisibility
 
-The `sandbox-preview` user and role are filtered out of the `/users` and `/roles` admin pages by the listing queries (`WHERE name <> 'sandbox-preview' OR is_builtin = false` for the role; `WHERE email <> 'sandbox-preview@parcel.local'` for the user). They aren't mutable through the existing admin endpoints either — same protection as the `admin` builtin role gets, except hidden entirely.
+The `sandbox-preview` user and role are filtered out of the `/users` and `/roles` admin pages by the listing queries (the role list filters `WHERE name != 'sandbox-preview'`; the user list filters `WHERE email != 'sandbox-preview@parcel.local'`). They aren't mutable through the existing admin endpoints either — the user-update and role-update endpoints reject these targets with 403, mirroring the existing protection for the `admin` builtin role.
 
 ### `previews` JSONB shape
 
@@ -175,33 +178,61 @@ The `sandbox-preview` user and role are filtered out of the `/users` and `/roles
 ## Identity (`previews.identity`)
 
 ```python
+_PREVIEW_USER_ID = UUID("00000000-0000-0000-0000-000000000011")
+_PREVIEW_ROLE_NAME = "sandbox-preview"
+
+
 async def sync_preview_role(sessionmaker) -> None:
-    """Idempotent — assigns every Permission to the sandbox-preview role."""
+    """Idempotent — assigns every Permission name to the sandbox-preview role.
+
+    role_permissions joins by permission_name (text), so we sync names not ids.
+    """
     async with sessionmaker() as session:
         async with session.begin():
-            role_id = (await session.execute(
-                select(Role.id).where(Role.name == "sandbox-preview")
+            role_row = (await session.execute(
+                select(Role).where(Role.name == _PREVIEW_ROLE_NAME)
             )).scalar_one()
             existing = set((await session.execute(
-                select(RolePermission.permission_id).where(RolePermission.role_id == role_id)
+                select(role_permissions.c.permission_name).where(
+                    role_permissions.c.role_id == role_row.id
+                )
             )).scalars().all())
-            all_perms = set((await session.execute(select(Permission.id))).scalars().all())
-            for pid in all_perms - existing:
-                session.add(RolePermission(role_id=role_id, permission_id=pid))
+            all_perm_names = set((await session.execute(select(Permission.name))).scalars().all())
+            for pname in all_perm_names - existing:
+                await session.execute(
+                    role_permissions.insert().values(
+                        role_id=role_row.id, permission_name=pname
+                    )
+                )
 
 
-_PREVIEW_USER_ID = UUID("00000000-0000-0000-0000-000000000011")
+async def mint_session_cookie(sessionmaker, settings: Settings) -> tuple[uuid.UUID, str]:
+    """Create a Session row for the sandbox-preview user and return (session_id, cookie_value).
+
+    The auth dependency `current_session` looks up the session in the DB by the
+    UUID encoded in the cookie, so a real row must exist. The render runner
+    revokes the session in its `finally` to keep `shell.sessions` from growing.
+    """
+    async with sessionmaker() as session:
+        async with session.begin():
+            db_session = await sessions_service.create_session(
+                session, user_id=_PREVIEW_USER_ID
+            )
+            session_id = db_session.id
+    cookie_value = sign_session_id(session_id, secret=settings.session_secret)
+    return session_id, cookie_value
 
 
-def mint_cookie(settings: Settings) -> str:
-    serializer = URLSafeSerializer(settings.session_secret)
-    return serializer.dumps({
-        "user_id": str(_PREVIEW_USER_ID),
-        "issued_at": datetime.now(UTC).isoformat(),
-    })
+async def revoke_session(sessionmaker, session_id: uuid.UUID) -> None:
+    """Best-effort cleanup; no-op if already gone."""
+    async with sessionmaker() as session:
+        async with session.begin():
+            row = await session.get(DbSession, session_id)
+            if row is not None and row.revoked_at is None:
+                row.revoked_at = datetime.now(UTC)
 ```
 
-The auth code path is unchanged. The session middleware reads the cookie, looks up `_PREVIEW_USER_ID`, walks the user → role → permissions chain, and the synced role grants everything declared in the system. No special-casing in `auth.*` or `rbac.*`.
+The auth code path is unchanged. The cookie middleware reads `parcel_session`, decodes the session_id via `verify_session_cookie`, calls `lookup` which finds the live `shell.sessions` row pointing at `_PREVIEW_USER_ID`, then `current_user` fetches the active user, then `require_permission` checks the synced role. No special-casing in `auth.*` or `rbac.*`.
 
 ### Cookie scope
 
