@@ -1,6 +1,7 @@
 """Parcel SDK — the stable Python API every Parcel module imports.
 
-Phase 10b-retry surface: Phase 10b + per-workflow retry semantics.
+Phase 10c surface: Phase 10b-retry + rich actions (SendEmail, CallWebhook,
+RunModuleFunction, GenerateReport).
 """
 
 from __future__ import annotations
@@ -29,11 +30,15 @@ from parcel_sdk.reports import Report, ReportContext
 from parcel_sdk.sidebar import SidebarItem
 from parcel_sdk.workflows import (
     Action,
+    CallWebhook,
     EmitAudit,
+    GenerateReport,
     Manual,
     OnCreate,
     OnSchedule,
     OnUpdate,
+    RunModuleFunction,
+    SendEmail,
     Trigger,
     UpdateField,
     Workflow,
@@ -43,10 +48,12 @@ from parcel_sdk.workflows import (
 __all__ = [
     "Action",
     "BarWidget",
+    "CallWebhook",
     "Ctx",
     "Dashboard",
     "Dataset",
     "EmitAudit",
+    "GenerateReport",
     "HeadlineWidget",
     "Kpi",
     "KpiWidget",
@@ -59,6 +66,8 @@ __all__ = [
     "Permission",
     "Report",
     "ReportContext",
+    "RunModuleFunction",
+    "SendEmail",
     "Series",
     "SidebarItem",
     "Table",
@@ -75,4 +84,4 @@ __all__ = [
     "shell_api",
     "table_query",
 ]
-__version__ = "0.8.0"
+__version__ = "0.9.0"

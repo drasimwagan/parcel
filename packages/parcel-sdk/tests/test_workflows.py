@@ -215,3 +215,60 @@ def test_workflow_rejects_zero_retry_backoff_seconds() -> None:
             actions=(EmitAudit("hi"),),
             retry_backoff_seconds=0,
         )
+
+
+# ---- Phase 10c — rich actions ---------------------------------------------
+
+
+def test_send_email_is_frozen() -> None:
+    from parcel_sdk import SendEmail
+
+    a = SendEmail(to="x@y.com", subject="hi", body="hello")
+    assert a.to == "x@y.com"
+    assert a._required_capability == "network"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        a.to = "z@y.com"  # type: ignore[misc]
+
+
+def test_call_webhook_defaults() -> None:
+    from parcel_sdk import CallWebhook
+
+    a = CallWebhook(url="https://example.com/hook")
+    assert a.method == "POST"
+    assert a.headers == {}
+    assert a.body is None
+    assert a._required_capability == "network"
+
+
+def test_run_module_function_no_capability() -> None:
+    from parcel_sdk import RunModuleFunction
+
+    a = RunModuleFunction(module="contacts", function="audit_log")
+    assert a._required_capability is None
+
+
+def test_generate_report_no_capability() -> None:
+    from parcel_sdk import GenerateReport
+
+    a = GenerateReport(module="contacts", slug="directory")
+    assert a._required_capability is None
+    assert a.params == {}
+
+
+def test_action_union_includes_new_types() -> None:
+    from parcel_sdk import (
+        Action,
+        CallWebhook,
+        GenerateReport,
+        RunModuleFunction,
+        SendEmail,
+    )
+
+    # Each should be assignable as Action.
+    actions: list[Action] = [
+        SendEmail(to="x@y.com", subject="s", body="b"),
+        CallWebhook(url="https://example.com/h"),
+        RunModuleFunction(module="m", function="f"),
+        GenerateReport(module="m", slug="s"),
+    ]
+    assert len(actions) == 4

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -99,6 +99,7 @@ class UpdateField:
 
     field: str
     value: Any  # literal or Callable[[WorkflowContext], Any]
+    _required_capability: ClassVar[str | None] = None
 
 
 @dataclass(frozen=True)
@@ -110,9 +111,64 @@ class EmitAudit:
     """
 
     message: str
+    _required_capability: ClassVar[str | None] = None
 
 
-Action = UpdateField | EmitAudit
+@dataclass(frozen=True)
+class SendEmail:
+    """Send a plain-text email via the shell's configured SMTP host.
+
+    Required capability: `network`.
+    """
+
+    to: str
+    subject: str
+    body: str
+    _required_capability: ClassVar[str | None] = "network"
+
+
+@dataclass(frozen=True)
+class CallWebhook:
+    """Call a webhook URL with an optional JSON body. Non-2xx responses raise.
+
+    Required capability: `network`.
+    """
+
+    url: str
+    method: str = "POST"
+    headers: dict[str, str] = field(default_factory=dict)
+    body: dict[str, Any] | None = None
+    _required_capability: ClassVar[str | None] = "network"
+
+
+@dataclass(frozen=True)
+class RunModuleFunction:
+    """Invoke a function the module declared in `Module.workflow_functions`.
+
+    The function must be `async def fn(ctx: WorkflowContext) -> Any`.
+    """
+
+    module: str
+    function: str
+    _required_capability: ClassVar[str | None] = None
+
+
+@dataclass(frozen=True)
+class GenerateReport:
+    """Render a Phase-9 report's HTML body and store it in the audit payload.
+
+    `params` are validated against the report's Pydantic params model (if any).
+    """
+
+    module: str
+    slug: str
+    params: dict[str, Any] = field(default_factory=dict)
+    _required_capability: ClassVar[str | None] = None
+
+
+Action = (
+    UpdateField | EmitAudit | SendEmail | CallWebhook | RunModuleFunction | GenerateReport
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -150,11 +206,15 @@ class WorkflowContext:
 
 __all__ = [
     "Action",
+    "CallWebhook",
     "EmitAudit",
+    "GenerateReport",
     "Manual",
     "OnCreate",
     "OnSchedule",
     "OnUpdate",
+    "RunModuleFunction",
+    "SendEmail",
     "Trigger",
     "UpdateField",
     "Workflow",

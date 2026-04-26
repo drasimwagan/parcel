@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
 
     from parcel_sdk.dashboards import Dashboard
     from parcel_sdk.reports import Report
-    from parcel_sdk.workflows import Workflow
+    from parcel_sdk.workflows import Workflow, WorkflowContext
 
 from parcel_sdk.sidebar import SidebarItem
 
@@ -36,3 +37,7 @@ class Module:
     dashboards: tuple[Dashboard, ...] = ()
     reports: tuple[Report, ...] = ()
     workflows: tuple[Workflow, ...] = ()
+    # Phase 10c — async functions invoked by RunModuleFunction action.
+    workflow_functions: dict[str, Callable[[WorkflowContext], Awaitable[Any]]] = field(
+        default_factory=dict
+    )
