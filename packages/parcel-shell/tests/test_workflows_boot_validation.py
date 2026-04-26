@@ -64,3 +64,69 @@ def test_mount_silent_when_workflow_permission_declared(capsys) -> None:
     )
     out = capsys.readouterr().out
     assert "module.workflow.unknown_permission" not in out
+
+
+def test_mount_warns_when_action_capability_not_declared(capsys) -> None:
+    from parcel_sdk import CallWebhook, OnCreate, Workflow
+
+    configure_logging(env="dev", level="WARNING")
+    app = FastAPI()
+
+    wf = Workflow(
+        slug="webhook",
+        title="W",
+        permission="contacts.read",
+        triggers=(OnCreate("contacts.contact.created"),),
+        actions=(CallWebhook(url="https://example.com/h"),),
+    )
+    module = Module(
+        name="contacts",
+        version="0.1.0",
+        permissions=(Permission("contacts.read", "..."),),
+        capabilities=(),  # NO network capability declared
+        workflows=(wf,),
+    )
+    mount_module(
+        app,
+        DiscoveredModule(
+            module=module,
+            distribution_name="parcel-mod-contacts",
+            distribution_version="0.1.0",
+        ),
+    )
+    out = capsys.readouterr().out
+    assert "module.workflow.missing_capability" in out
+    assert "network" in out
+    assert "CallWebhook" in out
+
+
+def test_mount_silent_when_capability_declared(capsys) -> None:
+    from parcel_sdk import CallWebhook, OnCreate, Workflow
+
+    configure_logging(env="dev", level="WARNING")
+    app = FastAPI()
+
+    wf = Workflow(
+        slug="webhook",
+        title="W",
+        permission="contacts.read",
+        triggers=(OnCreate("contacts.contact.created"),),
+        actions=(CallWebhook(url="https://example.com/h"),),
+    )
+    module = Module(
+        name="contacts",
+        version="0.1.0",
+        permissions=(Permission("contacts.read", "..."),),
+        capabilities=("network",),
+        workflows=(wf,),
+    )
+    mount_module(
+        app,
+        DiscoveredModule(
+            module=module,
+            distribution_name="parcel-mod-contacts",
+            distribution_version="0.1.0",
+        ),
+    )
+    out = capsys.readouterr().out
+    assert "missing_capability" not in out

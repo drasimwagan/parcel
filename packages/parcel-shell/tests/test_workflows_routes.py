@@ -106,3 +106,103 @@ async def test_run_dispatches_when_manual_trigger(app: FastAPI, authed_client: A
     r = await authed_client.post("/workflows/demo/manual/run", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"] == "/workflows/demo/manual"
+
+
+# ---- Phase 10c — retry + filter --------------------------------------------
+
+
+import uuid
+
+
+async def _seed_audit_row(
+    db_session, module: str, slug: str, status: str, event: str = "demo.thing.created",
+    attempt: int = 1
+) -> uuid.UUID:
+    """Insert a workflow_audit row and return its id."""
+    from parcel_shell.workflows.models import WorkflowAudit
+
+    row = WorkflowAudit(
+        id=uuid.uuid4(),
+        module=module,
+        workflow_slug=slug,
+        event=event,
+        status=status,
+        payload={},
+        attempt=attempt,
+    )
+    db_session.add(row)
+    await db_session.flush()
+    return row.id
+
+
+async def test_retry_404_on_unknown_audit(authed_client, app: FastAPI) -> None:
+    _mount(app, _WF_OK)
+    bogus = uuid.uuid4()
+    r = await authed_client.post(f"/workflows/demo/welcome/retry/{bogus}")
+    assert r.status_code == 404
+
+
+async def test_retry_404_on_ok_audit(
+    authed_client, app: FastAPI, db_session
+) -> None:
+    _mount(app, _WF_OK)
+    aid = await _seed_audit_row(db_session, "demo", "welcome", "ok")
+    await db_session.commit()
+    r = await authed_client.post(f"/workflows/demo/welcome/retry/{aid}")
+    assert r.status_code == 404
+
+
+async def test_retry_404_when_audit_belongs_to_different_workflow(
+    authed_client, app: FastAPI, db_session
+) -> None:
+    _mount(app, _WF_OK)
+    aid = await _seed_audit_row(db_session, "other_module", "other_slug", "error")
+    await db_session.commit()
+    r = await authed_client.post(f"/workflows/demo/welcome/retry/{aid}")
+    assert r.status_code == 404
+
+
+async def test_retry_303_on_error_audit_inline_mode(
+    authed_client, app: FastAPI, db_session
+) -> None:
+    """Inline mode: retry runs run_workflow directly with attempt+1."""
+    _mount(app, _WF_OK)
+    aid = await _seed_audit_row(db_session, "demo", "welcome", "error", attempt=1)
+    await db_session.commit()
+    r = await authed_client.post(
+        f"/workflows/demo/welcome/retry/{aid}", follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/workflows/demo/welcome"
+
+
+async def test_detail_filter_status_only_returns_matching(
+    authed_client, app: FastAPI, db_session
+) -> None:
+    _mount(app, _WF_OK)
+    await _seed_audit_row(db_session, "demo", "welcome", "ok", event="ev.a")
+    await _seed_audit_row(db_session, "demo", "welcome", "error", event="ev.b")
+    await db_session.commit()
+
+    r_ok = await authed_client.get("/workflows/demo/welcome?status=ok")
+    assert r_ok.status_code == 200
+    assert "ev.a" in r_ok.text
+    assert "ev.b" not in r_ok.text
+
+    r_err = await authed_client.get("/workflows/demo/welcome?status=error")
+    assert "ev.b" in r_err.text
+    assert "ev.a" not in r_err.text
+
+
+async def test_detail_filter_event_substring(
+    authed_client, app: FastAPI, db_session
+) -> None:
+    _mount(app, _WF_OK)
+    await _seed_audit_row(db_session, "demo", "welcome", "ok", event="alpha.created")
+    await _seed_audit_row(db_session, "demo", "welcome", "ok", event="beta.created")
+    await db_session.commit()
+
+    r = await authed_client.get("/workflows/demo/welcome?event=alpha")
+    assert r.status_code == 200
+    assert "alpha.created" in r.text
+    assert "beta.created" not in r.text
