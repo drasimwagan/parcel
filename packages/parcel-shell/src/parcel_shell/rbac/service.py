@@ -20,6 +20,10 @@ class BuiltinRoleError(Exception):
     """Tried to mutate or delete an is_builtin=True role."""
 
 
+class SystemIdentityError(Exception):
+    """Tried to mutate or delete the sandbox-preview system user."""
+
+
 class PermissionNotRegistered(Exception):
     """Tried to assign a permission that is not in `shell.permissions`."""
 
@@ -68,12 +72,16 @@ async def change_password(
     await db.flush()
 
 
+_SYSTEM_USER_EMAIL = "sandbox-preview@parcel.local"
+
+
 async def list_users(
     db: AsyncSession, *, offset: int = 0, limit: int = 50
 ) -> tuple[list[User], int]:
-    total = (await db.execute(select(func.count()).select_from(User))).scalar_one()
+    base = select(User).where(User.email != _SYSTEM_USER_EMAIL)
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     rows = (
-        (await db.execute(select(User).order_by(User.created_at).offset(offset).limit(limit)))
+        (await db.execute(base.order_by(User.created_at).offset(offset).limit(limit)))
         .scalars()
         .all()
     )
@@ -87,6 +95,8 @@ async def get_user(db: AsyncSession, user_id: uuid.UUID) -> User | None:
 async def update_user(
     db: AsyncSession, *, user: User, email: str | None = None, is_active: bool | None = None
 ) -> User:
+    if user.email == _SYSTEM_USER_EMAIL:
+        raise SystemIdentityError(user.email)
     if email is not None:
         user.email = email.lower()
     if is_active is not None:
@@ -97,6 +107,8 @@ async def update_user(
 
 
 async def deactivate_user(db: AsyncSession, *, user: User) -> User:
+    if user.email == _SYSTEM_USER_EMAIL:
+        raise SystemIdentityError(user.email)
     user.is_active = False
     user.updated_at = datetime.now(UTC)
     from parcel_shell.auth.sessions import revoke_all_for_user
@@ -116,8 +128,15 @@ async def create_role(db: AsyncSession, *, name: str, description: str | None = 
     return r
 
 
+_SYSTEM_ROLE_NAME = "sandbox-preview"
+
+
 async def list_roles(db: AsyncSession) -> list[Role]:
-    return list((await db.execute(select(Role).order_by(Role.name))).scalars().all())
+    return list(
+        (await db.execute(select(Role).where(Role.name != _SYSTEM_ROLE_NAME).order_by(Role.name)))
+        .scalars()
+        .all()
+    )
 
 
 async def get_role(db: AsyncSession, role_id: uuid.UUID) -> Role | None:
@@ -168,6 +187,8 @@ async def unassign_permission_from_role(
 
 
 async def assign_role_to_user(db: AsyncSession, *, user: User, role: Role) -> None:
+    if user.email == _SYSTEM_USER_EMAIL:
+        raise SystemIdentityError(user.email)
     await db.refresh(user, ["roles"])
     if any(r.id == role.id for r in user.roles):
         return
@@ -176,6 +197,8 @@ async def assign_role_to_user(db: AsyncSession, *, user: User, role: Role) -> No
 
 
 async def unassign_role_from_user(db: AsyncSession, *, user: User, role: Role) -> None:
+    if user.email == _SYSTEM_USER_EMAIL:
+        raise SystemIdentityError(user.email)
     await db.refresh(user, ["roles"])
     user.roles = [r for r in user.roles if r.id != role.id]
     await db.flush()

@@ -89,3 +89,35 @@ async def test_assign_and_unassign_role(authed_client: AsyncClient, role_factory
     assert r3.status_code == 204
     detail2 = await authed_client.get(f"/admin/users/{uid}")
     assert all(rr["name"] != "editor" for rr in detail2.json()["roles"])
+
+
+async def test_users_list_hides_sandbox_preview(authed_client: AsyncClient) -> None:
+    r = await authed_client.get("/admin/users")
+    assert r.status_code == 200
+    emails = [u["email"] for u in r.json()["items"]]
+    assert "sandbox-preview@parcel.local" not in emails
+
+
+async def test_sandbox_preview_user_patch_is_403(authed_client: AsyncClient) -> None:
+    _PREVIEW_USER_ID = "00000000-0000-0000-0000-000000000011"
+    r = await authed_client.patch(
+        f"/admin/users/{_PREVIEW_USER_ID}", json={"email": "hacked@x.com", "is_active": False}
+    )
+    assert r.status_code == 403
+
+
+async def test_sandbox_preview_user_delete_is_403(authed_client: AsyncClient) -> None:
+    _PREVIEW_USER_ID = "00000000-0000-0000-0000-000000000011"
+    r = await authed_client.delete(f"/admin/users/{_PREVIEW_USER_ID}")
+    assert r.status_code == 403
+
+
+async def test_sandbox_preview_user_role_assign_is_403(
+    authed_client: AsyncClient, role_factory
+) -> None:
+    role = await role_factory(name="extra-role")
+    _PREVIEW_USER_ID = "00000000-0000-0000-0000-000000000011"
+    r = await authed_client.post(
+        f"/admin/users/{_PREVIEW_USER_ID}/roles", json={"role_id": str(role.id)}
+    )
+    assert r.status_code == 403
