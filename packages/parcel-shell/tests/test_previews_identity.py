@@ -10,8 +10,7 @@ from parcel_shell.auth.cookies import verify_session_cookie
 from parcel_shell.rbac.models import Permission, Role, role_permissions
 from parcel_shell.rbac.models import Session as DbSession
 from parcel_shell.sandbox.previews import identity
-
-PREVIEW_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000011")
+from parcel_shell.sandbox.previews.identity import PREVIEW_USER_ID
 
 
 def _make_factory(url: str):
@@ -117,5 +116,11 @@ async def test_mint_and_revoke_session_cookie(migrations_applied: str, settings)
             row = await s.get(DbSession, session_id)
             assert row is not None
             assert row.revoked_at is not None
+
+        # Revoking again is a no-op (already revoked).
+        await identity.revoke_session(factory, session_id)
+
+        # Revoking a nonexistent session is a no-op (does not raise).
+        await identity.revoke_session(factory, uuid.uuid4())
     finally:
         await engine.dispose()
