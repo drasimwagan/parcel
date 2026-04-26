@@ -1,3 +1,4 @@
+{# Wraps the section so HTMX swap target id stays stable. #}
 {% set polling = sb.preview_status in ('pending', 'rendering') %}
 <div id="previews-section"
      {% if polling %}
@@ -6,5 +7,5 @@
      hx-target="#previews-section"
      hx-swap="outerHTML"
      {% endif %}>
-  <p>Status: {{ sb.preview_status }}</p>
+  {% include "sandbox/_previews_section.html" %}
 </div>

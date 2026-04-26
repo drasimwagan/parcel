@@ -1,0 +1,64 @@
+<hr style="margin:24px 0;">
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+  <h3 style="margin:0;">Previews</h3>
+  {% if sb.status == 'active' and sb.preview_status != 'rendering' %}
+  <form method="post" action="/sandbox/{{ sb.id }}/previews/render" style="margin:0;">
+    <button type="submit" class="btn">Re-render previews</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if sb.preview_status in ('pending', 'rendering') %}
+  <p class="muted">
+    {% if sb.previews and sb.previews|length > 0 %}
+      Rendering {{ sb.previews|length }}…
+    {% else %}
+      Queued — rendering will start shortly.
+    {% endif %}
+  </p>
+
+{% elif sb.preview_status == 'failed' and not (sb.previews|selectattr('status','equalto','ok')|list) %}
+  <div class="alert error" style="background:#fee; border:1px solid #fcc; padding:12px; border-radius:4px;">
+    <strong>Render failed.</strong>
+    <p class="muted" style="margin:4px 0 0;">{{ sb.preview_error or 'Unknown error.' }}</p>
+  </div>
+
+{% else %}
+  {% set ok_entries = sb.previews|selectattr('status','equalto','ok')|list %}
+  {% set err_entries = sb.previews|selectattr('status','equalto','error')|list %}
+
+  {% if not ok_entries and not err_entries %}
+    <p class="muted">No routes were resolved.</p>
+  {% endif %}
+
+  <div x-data="{ vp: 1280 }">
+    <div class="tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+      <button type="button" class="btn" :class="vp===375 ? 'primary' : ''" @click="vp=375">Mobile · 375</button>
+      <button type="button" class="btn" :class="vp===768 ? 'primary' : ''" @click="vp=768">Tablet · 768</button>
+      <button type="button" class="btn" :class="vp===1280 ? 'primary' : ''" @click="vp=1280">Desktop · 1280</button>
+    </div>
+
+    {% for vp in (375, 768, 1280) %}
+    <div x-show="vp === {{ vp }}" style="display:flex; flex-direction:column; gap:16px;">
+      {% for entry in sb.previews if entry.viewport == vp %}
+        {% if entry.status == 'ok' %}
+          <figure style="margin:0;">
+            <figcaption class="muted" style="margin-bottom:4px;">
+              <a href="{{ sb.url_prefix }}{{ entry.route }}" target="_blank">
+                <code>{{ entry.route }}</code> ↗
+              </a>
+            </figcaption>
+            <a href="{{ sb.url_prefix }}{{ entry.route }}" target="_blank">
+              <img src="/sandbox/{{ sb.id }}/preview-image/{{ entry.filename }}"
+                   alt="{{ entry.route }} at {{ vp }}px"
+                   style="max-width:100%; border:1px solid #ddd;">
+            </a>
+          </figure>
+        {% else %}
+          {% include "sandbox/_preview_error.html" %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
