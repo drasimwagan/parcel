@@ -102,6 +102,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 log.warning("ai.chat.orphans_swept", count=swept)
 
         app.state.ai_tasks = set()
+        app.state.preview_tasks = set()
+
+        # Phase 11 — orphan sweep mirrors the AI chat sweep.
+        from parcel_shell.sandbox.previews.runner import sweep_orphans
+
+        swept_previews = await sweep_orphans(sessionmaker)
+        if swept_previews:
+            log.warning("sandbox.preview.orphans_swept", count=swept_previews)
 
         log.info("shell.startup", env=settings.env)
         try:
@@ -114,6 +122,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 t.cancel()
             if tasks:
                 await _asyncio.gather(*tasks, return_exceptions=True)
+
+            preview_tasks = list(getattr(app.state, "preview_tasks", set()))
+            for t in preview_tasks:
+                t.cancel()
+            if preview_tasks:
+                await _asyncio.gather(*preview_tasks, return_exceptions=True)
             if getattr(app.state, "arq_redis", None) is not None:
                 await app.state.arq_redis.close()
             await app.state.redis.aclose()

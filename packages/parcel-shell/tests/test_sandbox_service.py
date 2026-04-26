@@ -14,6 +14,7 @@ from parcel_shell.sandbox import service as sandbox_service
 from parcel_shell.sandbox.models import SandboxInstall
 
 CONTACTS_SRC = Path(__file__).resolve().parents[3] / "modules" / "contacts"
+_FIXTURE_SANDBOX_SRC = Path(__file__).parent / "_fixtures" / "test_module"
 
 
 def _zip_of(src: Path, dst: Path) -> bytes:
@@ -126,6 +127,44 @@ async def test_dismiss_sandbox_drops_schema(
             ).scalar()
             assert has is None
             assert not Path(root).exists()
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_enqueues_preview_render(
+    committing_app: FastAPI, settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """create_sandbox calls previews.queue.enqueue after the sandbox row is flushed."""
+    import parcel_shell.sandbox.previews.queue as _queue_mod
+
+    blob = _zip_of(CONTACTS_SRC, tmp_path / "contacts.zip")
+    engine, factory = await _with_fresh_session(settings)
+
+    calls: list[tuple] = []
+
+    async def _fake_enqueue(sandbox_id, app, settings_arg):
+        calls.append((sandbox_id, app, settings_arg))
+
+    monkeypatch.setattr(_queue_mod, "enqueue", _fake_enqueue)
+
+    try:
+        async with factory() as db:
+            row = await sandbox_service.create_sandbox(
+                db,
+                source_zip_bytes=blob,
+                app=committing_app,
+                settings=settings,
+            )
+            await db.commit()
+            assert isinstance(row.id, UUID)
+            # The enqueue hook must have fired once with the correct sandbox id.
+            assert len(calls) == 1
+            assert calls[0][0] == row.id
+            assert calls[0][2] is settings
+            # Cleanup.
+            await sandbox_service.dismiss_sandbox(db, row.id, committing_app)
+            await db.commit()
     finally:
         await engine.dispose()
 
