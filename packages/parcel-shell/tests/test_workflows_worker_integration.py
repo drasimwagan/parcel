@@ -16,7 +16,7 @@ from arq import Worker, create_pool
 from arq.connections import RedisSettings
 from sqlalchemy import select
 
-from parcel_sdk import EmitAudit, Module, OnCreate, Workflow
+from parcel_sdk import EmitAudit, Module, OnCreate, UpdateField, Workflow
 from parcel_shell.workflows.models import WorkflowAudit
 from parcel_shell.workflows.serialize import encode_events
 
@@ -105,3 +105,93 @@ async def test_worker_round_trip_event_dispatch(
         assert len(rows) == 1
         assert rows[0].workflow_slug == "cap"
         assert rows[0].status == "ok"
+
+
+async def test_worker_round_trip_retries_on_error(
+    redis_container: str, sessionmaker_factory, monkeypatch
+) -> None:
+    """A workflow with max_retries=2 + always-failing action produces 3 audit
+    rows (attempt=1, 2, 3) when run end-to-end through ARQ."""
+    monkeypatch.delenv("PARCEL_WORKFLOWS_INLINE", raising=False)
+
+    # Truncate audit table — earlier integration test may have populated it.
+    from sqlalchemy import text as _text
+
+    async with sessionmaker_factory() as s:
+        await s.execute(_text("TRUNCATE TABLE shell.workflow_audit"))
+        await s.commit()
+
+    wf = Workflow(
+        slug="bad",
+        title="B",
+        permission="x.read",
+        triggers=(OnCreate("integration.test.retry"),),
+        actions=(UpdateField(field="x", value=1),),  # always raises (no subject)
+        max_retries=2,
+        retry_backoff_seconds=1,  # keep test fast
+    )
+    fake_app = SimpleNamespace(
+        state=SimpleNamespace(
+            active_modules_manifest={
+                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
+            }
+        )
+    )
+    from parcel_shell.workflows import runner
+
+    monkeypatch.setattr(runner, "_active_app", fake_app, raising=False)
+
+    redis_settings = RedisSettings.from_dsn(redis_container)
+    pool = await create_pool(redis_settings)
+    try:
+        payload = encode_events(
+            [
+                {
+                    "event": "integration.test.retry",
+                    "subject": None,
+                    "subject_id": None,
+                    "changed": (),
+                }
+            ]
+        )
+        await pool.enqueue_job("run_event_dispatch", payload)
+    finally:
+        await pool.close()
+
+    from parcel_shell.workflows.worker import (
+        run_event_dispatch,
+        run_scheduled_workflow,
+    )
+
+    async def _test_startup(ctx: dict) -> None:
+        ctx["sessionmaker"] = sessionmaker_factory
+        ctx["app"] = fake_app
+        runner.set_active_app(fake_app)
+
+    async def _test_shutdown(ctx: dict) -> None:
+        return None
+
+    worker = Worker(
+        functions=[run_event_dispatch, run_scheduled_workflow],
+        redis_settings=redis_settings,
+        on_startup=_test_startup,
+        on_shutdown=_test_shutdown,
+        burst=True,
+        max_jobs=1,
+    )
+    try:
+        await asyncio.wait_for(worker.async_run(), timeout=30.0)
+    finally:
+        await worker.close()
+
+    async with sessionmaker_factory() as s:
+        rows = (
+            await s.scalars(
+                select(WorkflowAudit)
+                .where(WorkflowAudit.workflow_slug == "bad")
+                .order_by(WorkflowAudit.attempt)
+            )
+        ).all()
+        assert len(rows) == 3, f"expected 3 attempts, got {len(rows)}"
+        assert [r.attempt for r in rows] == [1, 2, 3]
+        assert all(r.status == "error" for r in rows)
