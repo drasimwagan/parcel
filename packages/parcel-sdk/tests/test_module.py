@@ -117,3 +117,17 @@ def test_module_workflows_accepts_tuple() -> None:
     )
     m = Module(name="demo", version="0.1.0", workflows=(w,))
     assert m.workflows == (w,)
+
+
+async def _wf_fn(_ctx) -> str:
+    return "ok"
+
+
+def test_module_workflow_functions_defaults_empty() -> None:
+    m = Module(name="demo", version="0.1.0")
+    assert m.workflow_functions == {}
+
+
+def test_module_workflow_functions_accepts_dict() -> None:
+    m = Module(name="demo", version="0.1.0", workflow_functions={"audit": _wf_fn})
+    assert m.workflow_functions["audit"] is _wf_fn

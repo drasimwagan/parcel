@@ -56,6 +56,20 @@ def mount_module(app: FastAPI, discovered: DiscoveredModule) -> None:
                 permission=workflow.permission,
             )
 
+    # Phase 10c — capability checks per action.
+    declared_caps = set(getattr(discovered.module, "capabilities", ()))
+    for workflow in getattr(discovered.module, "workflows", ()):
+        for action in workflow.actions:
+            cap = getattr(type(action), "_required_capability", None)
+            if cap and cap not in declared_caps:
+                _log.warning(
+                    "module.workflow.missing_capability",
+                    module=name,
+                    slug=workflow.slug,
+                    action=type(action).__name__,
+                    capability=cap,
+                )
+
 
 async def sync_active_modules(app: FastAPI) -> None:
     """At lifespan startup, mount every active installed module."""

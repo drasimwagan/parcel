@@ -33,11 +33,23 @@
 </div>
 
 <div class="bg-white rounded shadow">
-  <div class="p-4 border-b border-gray-200">
+  <div class="p-4 border-b border-gray-200 flex items-center justify-between">
     <h2 class="text-md font-medium">Recent invocations</h2>
+    <form method="get" class="flex gap-2 text-sm items-center">
+      <select name="status" class="border rounded px-2 py-1">
+        <option value="">All statuses</option>
+        <option value="ok" {% if filter_status == 'ok' %}selected{% endif %}>OK</option>
+        <option value="error" {% if filter_status == 'error' %}selected{% endif %}>Error</option>
+      </select>
+      <input type="text" name="event" value="{{ filter_event }}"
+             placeholder="event substring"
+             class="border rounded px-2 py-1 text-sm">
+      <button type="submit" class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">Filter</button>
+      <a href="/workflows/{{ module_name }}/{{ workflow.slug }}" class="text-xs text-gray-500 underline">clear</a>
+    </form>
   </div>
   {% if not audits %}
-    <p class="p-4 text-sm text-gray-500">No invocations yet.</p>
+    <p class="p-4 text-sm text-gray-500">No invocations match the filter.</p>
   {% else %}
     <table class="w-full text-sm">
       <thead class="bg-gray-50 text-xs uppercase text-gray-600">
@@ -48,6 +60,7 @@
           <th class="text-left p-2">Attempt</th>
           <th class="text-left p-2">Status</th>
           <th class="text-left p-2">Notes</th>
+          <th class="text-left p-2">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -71,6 +84,15 @@
                 {{ a.payload.audit_message }}
               {% else %}
                 —
+              {% endif %}
+            </td>
+            <td class="p-2">
+              {% if a.status == "error" %}
+                <form method="post"
+                      action="/workflows/{{ module_name }}/{{ workflow.slug }}/retry/{{ a.id }}"
+                      style="display:inline;">
+                  <button type="submit" class="text-xs underline text-indigo-600 hover:text-indigo-800">Retry</button>
+                </form>
               {% endif %}
             </td>
           </tr>

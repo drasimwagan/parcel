@@ -45,3 +45,17 @@ async def test_run_scheduled_workflow_writes_daily_audit_row(
         assert rows[0].subject_id is None
         assert rows[0].status == "ok"
         assert "contacts.daily_audit_summary.scheduled" in rows[0].payload.get("audit_message", "")
+
+
+def test_audit_log_via_function_in_manifest() -> None:
+    from parcel_mod_contacts.workflows import audit_log_via_function
+
+    slugs = {wf.slug for wf in contacts_module.workflows}
+    assert "audit_log_via_function" in slugs
+    assert audit_log_via_function in contacts_module.workflows
+
+
+def test_audit_log_function_registered() -> None:
+    from parcel_mod_contacts.workflows import audit_log
+
+    assert contacts_module.workflow_functions.get("audit_log") is audit_log

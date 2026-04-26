@@ -6,6 +6,7 @@ from parcel_sdk import (
     EmitAudit,
     OnCreate,
     OnSchedule,
+    RunModuleFunction,
     UpdateField,
     Workflow,
     WorkflowContext,
@@ -36,4 +37,23 @@ daily_audit_summary = Workflow(
     triggers=(OnSchedule(hour=9, minute=0),),
     actions=(EmitAudit(message="Daily contacts summary at {{ event }}"),),
     description="Writes a daily audit row at 09:00. Reference for OnSchedule.",
+)
+
+
+# Phase 10c — module function invoked by RunModuleFunction action.
+async def audit_log(ctx: WorkflowContext) -> str:
+    """Toy module function — produces a short audit-log token."""
+    return f"logged-{ctx.event}-{ctx.subject_id}"
+
+
+audit_log_via_function = Workflow(
+    slug="audit_log_via_function",
+    title="Run audit_log on create",
+    permission="contacts.read",
+    triggers=(OnCreate("contacts.contact.created"),),
+    actions=(RunModuleFunction(module="contacts", function="audit_log"),),
+    description=(
+        "Phase 10c reference: invokes contacts.workflow_functions['audit_log'] "
+        "on contact create."
+    ),
 )

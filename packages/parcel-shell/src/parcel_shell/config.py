@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-opus-4-7", alias="PARCEL_ANTHROPIC_MODEL")
 
+    # Phase 10c — SMTP for the SendEmail workflow action. All optional;
+    # SendEmail raises at run time if smtp_host is None.
+    smtp_host: str | None = Field(default=None, alias="PARCEL_SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="PARCEL_SMTP_PORT")
+    smtp_username: str | None = Field(default=None, alias="PARCEL_SMTP_USERNAME")
+    smtp_password: str | None = Field(default=None, alias="PARCEL_SMTP_PASSWORD")
+    smtp_from_address: str | None = Field(default=None, alias="PARCEL_SMTP_FROM_ADDRESS")
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg(cls, v: str) -> str:
