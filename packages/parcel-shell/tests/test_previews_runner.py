@@ -57,9 +57,6 @@ async def _fake_playwright(captured: list[tuple[str, int, str]]):
 
     browser.new_context = AsyncMock(side_effect=lambda **k: _new_context(**k))
 
-    async def _start():
-        return pw
-
     yield pw
 
 
@@ -225,4 +222,57 @@ async def test_sweep_orphans_flips_rendering_to_failed(
         row = await s.get(SandboxInstall, sandbox_id)
         assert row.preview_status == "failed"
         assert row.preview_error == "process_restart"
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_render_marks_failed_when_no_routes_resolved(
+    migrations_applied: str, settings, tmp_path: Path
+) -> None:
+    """When routes.resolve returns [], the runner marks failed with a clear message."""
+    engine = create_async_engine(migrations_applied, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    sandbox_id = uuid.uuid4()
+    schema_name = f"mod_sandbox_{sandbox_id.hex[:8]}"
+    module_root = tmp_path / "sandbox-empty"
+    module_root.mkdir()
+
+    async with factory() as s:
+        s.add(
+            SandboxInstall(
+                id=sandbox_id, name="empty", version="0.1.0", declared_capabilities=[],
+                schema_name=schema_name, module_root=str(module_root),
+                url_prefix="/mod-sandbox/abc",
+                gate_report={"passed": True, "findings": []},
+                created_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(days=7),
+                status="active", preview_status="pending",
+            )
+        )
+        await s.commit()
+
+    captured: list = []
+    fake_loaded = _make_loaded_module()
+
+    with patch(
+        "parcel_shell.sandbox.previews.runner.async_playwright",
+        lambda: _fake_playwright(captured),
+    ), patch(
+        "parcel_shell.sandbox.previews.runner.routes.resolve",
+        AsyncMock(return_value=[]),
+    ), patch(
+        "parcel_shell.sandbox.previews.runner.sandbox_service.load_sandbox_module",
+        lambda *a, **kw: fake_loaded,
+    ), patch(
+        "parcel_shell.sandbox.previews.runner.seed_runner.has_seed",
+        lambda _: False,
+    ):
+        await runner._render(sandbox_id, factory, MagicMock(), settings)
+
+    async with factory() as s:
+        row = await s.get(SandboxInstall, sandbox_id)
+        assert row.preview_status == "failed"
+        assert row.preview_error == "no routes resolved"
+        assert row.previews == []
     await engine.dispose()

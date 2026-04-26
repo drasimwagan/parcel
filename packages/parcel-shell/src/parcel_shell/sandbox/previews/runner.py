@@ -95,10 +95,14 @@ async def _render(
             if row is None:
                 return
             row.previews = entries
-            any_ok = any(e["status"] == "ok" for e in entries)
-            row.preview_status = "ready" if any_ok else "failed"
-            if not any_ok and entries:
-                row.preview_error = "all routes errored"
+            if not entries:
+                row.preview_status = "failed"
+                row.preview_error = "no routes resolved"
+            else:
+                any_ok = any(e["status"] == "ok" for e in entries)
+                row.preview_status = "ready" if any_ok else "failed"
+                if not any_ok:
+                    row.preview_error = "all routes errored"
             row.preview_finished_at = datetime.now(UTC)
             await s.commit()
     except asyncio.CancelledError:
