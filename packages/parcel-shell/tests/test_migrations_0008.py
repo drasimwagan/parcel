@@ -61,14 +61,10 @@ async def test_0008_existing_rows_get_attempt_default(
         ).scalar_one()
     assert attempt == 1
     async with engine.begin() as conn:
-        await conn.execute(
-            text("DELETE FROM shell.workflow_audit WHERE id = :id"), {"id": rid}
-        )
+        await conn.execute(text("DELETE FROM shell.workflow_audit WHERE id = :id"), {"id": rid})
 
 
-async def test_0008_downgrade_drops_column(
-    database_url: str, engine: AsyncEngine
-) -> None:
+async def test_0008_downgrade_drops_column(database_url: str, engine: AsyncEngine) -> None:
     await asyncio.to_thread(command.upgrade, _cfg(database_url), "head")
     await asyncio.to_thread(command.downgrade, _cfg(database_url), "0007")
     async with engine.connect() as conn:

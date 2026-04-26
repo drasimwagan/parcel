@@ -88,9 +88,7 @@ async def run_scheduled_workflow(ctx: dict, module_name: str, slug: str) -> None
         "subject_id": None,
         "changed": (),
     }
-    outcome = await run_workflow(
-        module_name, hit.workflow, ev, sessionmaker, attempt=job_try
-    )
+    outcome = await run_workflow(module_name, hit.workflow, ev, sessionmaker, attempt=job_try)
     if outcome.status == "error" and job_try <= hit.workflow.max_retries:
         delay = hit.workflow.retry_backoff_seconds * 2 ** (job_try - 1)
         raise Retry(defer=timedelta(seconds=delay))

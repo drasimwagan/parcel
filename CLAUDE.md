@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 10b — Workflows scheduled triggers + ARQ done.** Workflows now route through ARQ at runtime: `_on_after_commit` enqueues an event-dispatch job to Redis instead of `asyncio.create_task`. A new `worker` compose service (same image as the shell, `command: ["parcel", "worker"]`) consumes the queue, runs sync-trigger workflows in a fresh session, and runs cron-fired workflows on its own scheduler. New trigger `OnSchedule(hour=, minute=, second=, day=, month=, weekday=)` uses ARQ-native kwargs (`int`, `set[int]`, or `None`); subject is always `None` for cron firings. `_matches` returns `False` for `OnSchedule` (mirrors `Manual`). Each `OnSchedule` declaration generates a unique-named wrapper coroutine that closes over `(module_name, slug)` and forwards to `run_scheduled_workflow`; wrappers are registered alongside the canonical handlers in `WorkerSettings.functions` (ARQ's `cron()` doesn't accept `kwargs`). Cron audit auto-names `<module>.<slug>.scheduled`. Worker discovers active modules synchronously at boot via a sync DB query — restart required on new module install (documented limitation). `PARCEL_WORKFLOWS_INLINE=1` env var (set by pytest config + by `parcel dev`) short-circuits the bus to the Phase-10a `loop.create_task(dispatch_events(...))` for tests/dev; cron triggers don't fire in inline mode. Subject serialization: SQLAlchemy instances reduced to `{class_path, id}`; worker re-imports the class via `importlib` and re-fetches the row — if the row's been deleted, the action raises and audit captures the error. SDK bumped to `0.7.0` (adds `OnSchedule`); Contacts bumped to `0.5.0` and ships a reference `daily_audit_summary` workflow at 09:00. Test count: 392 → ~417 (includes one ARQ-end-to-end test via testcontainer Redis).
+**Phase 10b-retry — Workflow retry semantics done.** Workflows opt into retry by setting `Workflow.max_retries: int = 0` (default no retry) and `Workflow.retry_backoff_seconds: int = 30` (default base for exponential backoff). When an action chain fails in the worker, the handler reads `ctx["job_try"]` (ARQ-provided), passes it to `run_workflow` as `attempt`, and on `outcome.status == "error"` AND `job_try <= max_retries` raises `arq.Retry(defer=timedelta(seconds=base * 2 ** (job_try - 1)))`. ARQ re-enqueues with `job_try += 1`. Each attempt writes its own audit row with the new `attempt` column (migration 0008, additive `NOT NULL DEFAULT 1`). `run_workflow` now returns a `WorkflowOutcome(status, error_message, failed_action_index)` dataclass so the worker can decide retry without re-querying. Inline mode (`PARCEL_WORKFLOWS_INLINE=1`) does not retry — no queue. Audit detail UI gains an `Attempt` column. SDK bumped to `0.8.0` (adds two `Workflow` fields with construction-time validation: `max_retries >= 0`, `retry_backoff_seconds >= 1`). Existing 10a/10b workflows are unchanged (default `max_retries=0` keeps the audit-once-on-error invariant). Test count: 417 → ~430 (one new e2e ARQ retry test confirms 3 audit rows for `max_retries=2`).
 
-Next: **Phase 10b-retry** (per-workflow `max_retries` + exponential backoff on top of ARQ's queue) OR **Phase 10c — Workflows rich actions** (`send_email` / `call_webhook` / `run_module_function` / `generate_report` + richer audit UI). Either is a small, well-scoped session. Start a new session; prompt: "Begin Phase 10b-retry per `CLAUDE.md` roadmap." or "Begin Phase 10c per `CLAUDE.md` roadmap." The full upcoming roadmap (10b ARQ ✅ → 10b-retry → 10c → 11) is described below under "Upcoming phases".
+Next: **Phase 10c — Workflows rich actions** (`send_email`, `call_webhook`, `run_module_function`, `generate_report` action types; per-action capability declarations; richer audit UI with status/event/module filters and a manual-retry button). Start a new session; prompt: "Begin Phase 10c per `CLAUDE.md` roadmap." The full upcoming roadmap (10b-retry ✅ → 10c → 11) is described below under "Upcoming phases".
 
 ## Locked-in decisions
 
@@ -126,6 +126,10 @@ Next: **Phase 10b-retry** (per-workflow `max_retries` + exponential backoff on t
 | Workflow event serialization | `parcel_shell.workflows.serialize` encodes SQLAlchemy subjects as `{class_path, id}` for JSON-safe transport. `decode_event` re-imports the class via `importlib` and `session.get`s the row in the worker session. Missing row → subject=None; subsequent `UpdateField` action raises and audit captures the error. |
 | Workflow cron + UpdateField | `OnSchedule` triggers always have `subject=None`. `UpdateField` on a cron firing raises `RuntimeError("UpdateField requires a subject_id")` and audit `status="error"`. Documented; fix in 10c via richer actions that don't require a subject. |
 | Workflow cron handler registration | ARQ's `cron()` doesn't accept `kwargs`, so `_build_cron_jobs` generates one wrapper coroutine per `OnSchedule` trigger. Each wrapper has a unique `__name__` (`_cron_<module>_<slug>`) and closes over `(module_name, slug)` to forward to `run_scheduled_workflow`. Wrappers are registered in `WorkerSettings.functions` alongside the canonical handlers so ARQ can resolve them by name when firing. |
+| Workflow retry policy | Opt-in via `Workflow.max_retries: int = 0` and `Workflow.retry_backoff_seconds: int = 30`. Validated at SDK construction time (`max_retries >= 0`, `retry_backoff_seconds >= 1`). Default 0 keeps existing 10a/10b workflows unchanged. |
+| Workflow retry mechanics | Worker handlers consult `ctx["job_try"]` (ARQ-provided), pass as `attempt` to `run_workflow`, and on `status="error"` + budget remaining raise `arq.Retry(defer=timedelta(seconds=base * 2 ** (job_try - 1)))`. Exponential backoff; no upper cap. Each attempt writes its own audit row. Inline mode does not retry. |
+| Workflow audit attempt column | New `attempt: int NOT NULL DEFAULT 1` on `shell.workflow_audit` (migration 0008). Audit detail UI surfaces it as a sortable column. Audit rows for a single logical event ordered chronologically by `created_at` form the retry sequence (1 → 2 → 3 → ...). |
+| Workflow run_workflow return | `WorkflowOutcome(status, error_message, failed_action_index)` frozen dataclass. Audit row is still written internally in a separate session; the return value lets worker handlers make retry decisions without re-querying. |
 
 ## Repository layout
 
@@ -183,8 +187,8 @@ contacts = "parcel_mod_contacts:module"
 | 9 | ✅ done | Reports + PDF generation — templated, parameterised, printable/exportable |
 | 10a | ✅ done | Workflows engine + sync triggers + minimal actions + read-only UI |
 | 10b | ✅ done | Workflows scheduled triggers + ARQ + worker container |
-| 10b-retry | ⏭ next | Per-workflow max_retries + exponential backoff (small phase) |
-| 10c | | Workflows rich actions (send_email, call_webhook, run_module_function, generate_report) + richer UI |
+| 10b-retry | ✅ done | Per-workflow max_retries + exponential backoff (small phase) |
+| 10c | ⏭ next | Workflows rich actions (send_email, call_webhook, run_module_function, generate_report) + richer UI |
 | 11 |  | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, builds on ARQ |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
@@ -222,9 +226,9 @@ Shipped on the `phase-10a-workflows` branch. See the "Workflow *" rows under "Lo
 
 Shipped on the `phase-10b-workflows-cron` branch. See the six "Workflow *" rows added in this phase under "Locked-in decisions" for the concrete contracts. ARQ landed as first-class infrastructure: new `worker` compose service, `parcel worker` CLI, `PARCEL_WORKFLOWS_INLINE=1` test/dev short-circuit. `OnSchedule(hour=, minute=, ...)` uses ARQ-native kwargs; cron handlers are unique-named wrapper coroutines (since `arq.cron()` doesn't accept kwargs). Subject reduced to `{class_path, id}` for cross-process serialization. Worker boot path uses a sync DB query for cron_jobs (sidesteps nested-loop concerns). Contacts ships `daily_audit_summary` at 09:00.
 
-### Phase 10b-retry — Per-workflow retry semantics
+### Phase 10b-retry — Workflow retry semantics ✅ shipped
 
-**Scope.** Add `Workflow.max_retries: int = 0` and `Workflow.retry_backoff: ...`. Threaded through `_on_after_commit` enqueue and the worker's job exec. ARQ's per-task `max_tries` and built-in retry exception bubble through. Audit table gets a `retry_index` or `attempt` column (or new `retry_of` linking column) — schema change → migration 0008. Documented in `module-authoring.md`.
+Shipped on the `phase-10b-retry` branch. See the four "Workflow retry *" rows added in this phase under "Locked-in decisions" for the concrete contracts. Opt-in via `Workflow.max_retries` (default 0) + `Workflow.retry_backoff_seconds` (default 30, exponential). Worker handlers raise `arq.Retry` when `status="error"` and `job_try <= max_retries`. Audit rows gain an `attempt` column (migration 0008). `run_workflow` returns a `WorkflowOutcome` dataclass. Inline-mode tests do not retry; e2e retry coverage rides on the testcontainer-Redis worker integration test.
 
 ### Phase 10c — Workflows rich actions + UI
 

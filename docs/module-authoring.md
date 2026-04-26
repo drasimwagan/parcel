@@ -639,6 +639,51 @@ with `status="error"` and `failed_action_index` pointing at the failing
 action. The originating handler's commit (which already succeeded) is
 untouched.
 
+### Retries (Phase 10b-retry)
+
+Workflows opt into retry by setting two fields:
+
+```python
+welcome = Workflow(
+    slug="webhook_callback",
+    title="Webhook callback",
+    permission="x.write",
+    triggers=(OnCreate("x.thing.created"),),
+    actions=(...),
+    max_retries=3,                # default 0 (no retry)
+    retry_backoff_seconds=30,     # default 30; exponential
+)
+```
+
+When an action chain fails inside the worker:
+
+- If `job_try <= max_retries`, the worker raises `arq.Retry(defer=...)` and
+  ARQ re-enqueues the job. Each attempt writes its own audit row with the
+  `attempt` column set to the try number (1, 2, 3, ...).
+- If `job_try > max_retries`, the audit row is the final record and ARQ
+  does not retry.
+
+The delay between attempts is `retry_backoff_seconds * 2 ** (current_try - 1)`.
+For default `retry_backoff_seconds=30`: try 2 = 30s, try 3 = 60s, try 4 = 120s.
+
+**Idempotency.** Action chains run again from scratch on retry. If your
+`UpdateField` actions or your custom action data fns have side effects,
+ensure they're idempotent or guarded against duplicate execution. The audit
+log shows you which attempt is which.
+
+**Inline mode (tests + `parcel dev`) does not retry.** `PARCEL_WORKFLOWS_INLINE=1`
+short-circuits the queue entirely; failing workflows write a single audit row
+with `attempt=1`. Tests that exercise retry semantics use the
+testcontainer-Redis end-to-end harness (see
+`packages/parcel-shell/tests/test_workflows_worker_integration.py`).
+
+**Multi-event imprecision.** If a single `_on_after_commit` payload fires
+multiple events and one workflow errors (with retry budget) while another
+succeeds, the whole job re-runs — the successful workflow runs again on the
+next attempt. In practice payloads are usually single-event (one `emit` per
+handler), so this is rarely an issue. A cleaner per-(event, workflow)-pair
+enqueue lands in 10c if it proves necessary.
+
 ### Permissions and the audit log
 
 `Workflow.permission` is one of your module's own permissions (e.g.

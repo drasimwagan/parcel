@@ -167,9 +167,7 @@ async def test_run_event_dispatch_no_retry_when_max_retries_zero(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
@@ -187,6 +185,7 @@ async def test_run_event_dispatch_raises_retry_on_error_with_budget(
     sessionmaker_factory, monkeypatch
 ) -> None:
     from arq import Retry
+
     from parcel_sdk import UpdateField
 
     wf = Workflow(
@@ -200,9 +199,7 @@ async def test_run_event_dispatch_raises_retry_on_error_with_budget(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
@@ -237,9 +234,7 @@ async def test_run_event_dispatch_no_retry_when_budget_exhausted(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
@@ -268,9 +263,7 @@ async def test_run_event_dispatch_writes_audit_with_job_try_attempt(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
@@ -291,6 +284,7 @@ async def test_run_scheduled_workflow_raises_retry_on_error_with_budget(
     sessionmaker_factory, monkeypatch
 ) -> None:
     from arq import Retry
+
     from parcel_sdk import UpdateField
 
     wf = Workflow(
@@ -304,9 +298,7 @@ async def test_run_scheduled_workflow_raises_retry_on_error_with_budget(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner

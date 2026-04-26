@@ -132,9 +132,7 @@ async def test_worker_round_trip_retries_on_error(
     )
     fake_app = SimpleNamespace(
         state=SimpleNamespace(
-            active_modules_manifest={
-                "demo": Module(name="demo", version="0.1.0", workflows=(wf,))
-            }
+            active_modules_manifest={"demo": Module(name="demo", version="0.1.0", workflows=(wf,))}
         )
     )
     from parcel_shell.workflows import runner
