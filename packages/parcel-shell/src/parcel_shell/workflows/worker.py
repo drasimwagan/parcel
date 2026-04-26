@@ -229,6 +229,8 @@ def build_worker_settings(settings: Settings) -> type:
     entry per OnSchedule trigger across all installed modules. Restart the
     worker to pick up newly-installed schedules.
     """
+    from parcel_shell.sandbox.previews.worker import render_sandbox_previews  # noqa: PLC0415
+
     manifest = _discover_active_manifest_sync(settings)
     jobs = _build_cron_jobs(manifest)
     # Each cron job's coroutine must also be registered in `functions` so ARQ
@@ -237,9 +239,15 @@ def build_worker_settings(settings: Settings) -> type:
 
     class WorkerSettings:
         redis_settings = RedisSettings.from_dsn(settings.redis_url)
-        functions = [run_event_dispatch, run_scheduled_workflow, *cron_handlers]
+        functions = [
+            run_event_dispatch,
+            run_scheduled_workflow,
+            render_sandbox_previews,
+            *cron_handlers,
+        ]
         cron_jobs = jobs
         on_startup = _startup
         on_shutdown = _shutdown
+        job_timeout = 600  # 10 min — covers worst-case 30-screenshot render
 
     return WorkerSettings
