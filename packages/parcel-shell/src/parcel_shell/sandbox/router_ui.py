@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -169,3 +171,77 @@ async def sandbox_promote(
     response = RedirectResponse(url=f"/modules/{name}", status_code=303)
     _flash(request, response, "success", f"Promoted to module {name!r}.")
     return response
+
+
+@router.get("/sandbox/{sandbox_id}/previews-fragment", response_class=HTMLResponse)
+async def previews_fragment(
+    sandbox_id: UUID,
+    request: Request,
+    user=Depends(html_require_permission("sandbox.read")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    row = await db.get(SandboxInstall, sandbox_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "sandbox_not_found")
+    tpl = get_templates()
+    return tpl.TemplateResponse(
+        request,
+        "sandbox/_previews_fragment.html",
+        {**(await _ctx(request, user, db, "/sandbox")), "sb": row},
+    )
+
+
+@router.post("/sandbox/{sandbox_id}/previews/render")
+async def previews_render(
+    sandbox_id: UUID,
+    request: Request,
+    user=Depends(html_require_permission("sandbox.install")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    row = await db.get(SandboxInstall, sandbox_id)
+    if row is None or row.status != "active":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "sandbox_not_found")
+    if row.preview_status == "rendering":
+        response = RedirectResponse(url=f"/sandbox/{sandbox_id}", status_code=303)
+        _flash(request, response, "error", "Render already in progress.")
+        response.status_code = 409
+        return response
+
+    row.previews = []
+    row.preview_error = None
+    row.preview_status = "pending"
+    row.preview_started_at = None
+    row.preview_finished_at = None
+    await db.flush()
+
+    from parcel_shell.sandbox.previews.queue import enqueue as enqueue_preview
+
+    await enqueue_preview(sandbox_id, request.app, request.app.state.settings)
+    response = RedirectResponse(url=f"/sandbox/{sandbox_id}", status_code=303)
+    _flash(request, response, "info", "Preview render kicked off.")
+    return response
+
+
+@router.get("/sandbox/{sandbox_id}/preview-image/{filename}")
+async def preview_image(
+    sandbox_id: UUID,
+    filename: str,
+    user=Depends(html_require_permission("sandbox.read")),
+    db: AsyncSession = Depends(get_session),
+) -> Response:
+    row = await db.get(SandboxInstall, sandbox_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "sandbox_not_found")
+    valid = {
+        e["filename"] for e in (row.previews or []) if e.get("status") == "ok" and e.get("filename")
+    }
+    if filename not in valid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "preview_not_found")
+    file_path = Path(row.module_root) / "previews" / filename
+    if not file_path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "preview_file_missing")
+    return FileResponse(
+        path=str(file_path),
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )

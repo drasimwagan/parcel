@@ -1,0 +1,10 @@
+{% set polling = sb.preview_status in ('pending', 'rendering') %}
+<div id="previews-section"
+     {% if polling %}
+     hx-get="/sandbox/{{ sb.id }}/previews-fragment"
+     hx-trigger="every 2s"
+     hx-target="#previews-section"
+     hx-swap="outerHTML"
+     {% endif %}>
+  <p>Status: {{ sb.preview_status }}</p>
+</div>
