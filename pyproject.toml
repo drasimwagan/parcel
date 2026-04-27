@@ -11,8 +11,8 @@ authors = [{ name = "Asim" }]
 members = ["packages/*", "modules/*"]
 
 # Dev-only tooling shared across the workspace.
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ruff>=0.5",
     "pyright>=1.1.380",
     "pytest>=8.0",
