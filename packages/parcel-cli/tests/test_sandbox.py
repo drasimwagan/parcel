@@ -46,9 +46,7 @@ def test_previews_subcommand_prints_status(monkeypatch, capsys) -> None:
     fake_factory.return_value.__aenter__ = AsyncMock(return_value=fake_session)
     fake_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
-    fake_app = SimpleNamespace(
-        state=SimpleNamespace(sessionmaker=fake_factory)
-    )
+    fake_app = SimpleNamespace(state=SimpleNamespace(sessionmaker=fake_factory))
 
     @asynccontextmanager
     async def _with_shell():

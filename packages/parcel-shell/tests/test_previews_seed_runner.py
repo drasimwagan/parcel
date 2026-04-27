@@ -66,9 +66,7 @@ def test_has_seed_false_when_seed_file_lacks_seed_callable(tmp_path: Path) -> No
 
 
 @pytest.mark.asyncio
-async def test_run_invokes_seed_with_session(
-    tmp_path: Path, migrations_applied: str
-) -> None:
+async def test_run_invokes_seed_with_session(tmp_path: Path, migrations_applied: str) -> None:
     from sqlalchemy.ext.asyncio import (
         AsyncSession,
         async_sessionmaker,

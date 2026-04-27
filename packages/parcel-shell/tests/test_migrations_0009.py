@@ -76,17 +76,11 @@ def test_migration_does_not_seed_role_permissions() -> None:
     """
     from pathlib import Path
 
-    versions_dir = (
-        Path(__file__).parent.parent
-        / "src"
-        / "parcel_shell"
-        / "alembic"
-        / "versions"
-    )
+    versions_dir = Path(__file__).parent.parent / "src" / "parcel_shell" / "alembic" / "versions"
     migration_file = versions_dir / "0009_sandbox_previews.py"
     assert migration_file.exists(), f"Migration file not found: {migration_file}"
     source = migration_file.read_text()
     # The upgrade() function must not touch role_permissions at all.
-    assert "role_permissions" not in source, (
-        "Migration 0009 must not seed role_permissions — sync happens at render time"
-    )
+    assert (
+        "role_permissions" not in source
+    ), "Migration 0009 must not seed role_permissions — sync happens at render time"

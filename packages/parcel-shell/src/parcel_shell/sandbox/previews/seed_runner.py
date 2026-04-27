@@ -42,9 +42,7 @@ def has_seed(loaded_module: types.ModuleType) -> bool:
     return callable(getattr(seed_submodule, "seed", None))
 
 
-async def run(
-    loaded_module: types.ModuleType, sessionmaker: async_sessionmaker
-) -> None:
+async def run(loaded_module: types.ModuleType, sessionmaker: async_sessionmaker) -> None:
     """Open a session and await `seed(session)`. Commits via session.begin()."""
     pkg_name = loaded_module.__name__
     seed_submodule = importlib.import_module(f"{pkg_name}.seed")

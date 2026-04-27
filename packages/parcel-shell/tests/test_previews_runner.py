@@ -241,13 +241,18 @@ async def test_render_marks_failed_when_no_routes_resolved(
     async with factory() as s:
         s.add(
             SandboxInstall(
-                id=sandbox_id, name="empty", version="0.1.0", declared_capabilities=[],
-                schema_name=schema_name, module_root=str(module_root),
+                id=sandbox_id,
+                name="empty",
+                version="0.1.0",
+                declared_capabilities=[],
+                schema_name=schema_name,
+                module_root=str(module_root),
                 url_prefix="/mod-sandbox/abc",
                 gate_report={"passed": True, "findings": []},
                 created_at=datetime.now(UTC),
                 expires_at=datetime.now(UTC) + timedelta(days=7),
-                status="active", preview_status="pending",
+                status="active",
+                preview_status="pending",
             )
         )
         await s.commit()
@@ -255,18 +260,23 @@ async def test_render_marks_failed_when_no_routes_resolved(
     captured: list = []
     fake_loaded = _make_loaded_module()
 
-    with patch(
-        "parcel_shell.sandbox.previews.runner.async_playwright",
-        lambda: _fake_playwright(captured),
-    ), patch(
-        "parcel_shell.sandbox.previews.runner.routes.resolve",
-        AsyncMock(return_value=[]),
-    ), patch(
-        "parcel_shell.sandbox.previews.runner.sandbox_service.load_sandbox_module",
-        lambda *a, **kw: fake_loaded,
-    ), patch(
-        "parcel_shell.sandbox.previews.runner.seed_runner.has_seed",
-        lambda _: False,
+    with (
+        patch(
+            "parcel_shell.sandbox.previews.runner.async_playwright",
+            lambda: _fake_playwright(captured),
+        ),
+        patch(
+            "parcel_shell.sandbox.previews.runner.routes.resolve",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "parcel_shell.sandbox.previews.runner.sandbox_service.load_sandbox_module",
+            lambda *a, **kw: fake_loaded,
+        ),
+        patch(
+            "parcel_shell.sandbox.previews.runner.seed_runner.has_seed",
+            lambda _: False,
+        ),
     ):
         await runner._render(sandbox_id, factory, MagicMock(), settings)
 
