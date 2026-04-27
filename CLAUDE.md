@@ -12,9 +12,9 @@
 
 ## Current phase
 
-**Phase 11 — Sandbox preview enrichment done.** Sandbox modules now render to screenshots automatically. New ARQ job `render_sandbox_previews(sandbox_id)` launches a single headless Chromium per render and walks every declared GET/HTML route at three viewports (mobile 375×, tablet 768×, desktop 1280×). Inline-mode short-circuit mirrors AI chat's `run_turn` — `asyncio.create_task` tracked in `app.state.preview_tasks`, cancelled on lifespan exit, with a boot-time orphan sweep that flips `preview_status='rendering'` rows to `failed(process_restart)`. New SDK type `parcel_sdk.previews.PreviewRoute` and `Module.preview_routes: tuple[PreviewRoute, ...] = ()` let modules override the auto-walk; without it, `routes.resolve` walks `module.router.routes`, fabricates path-param values from `module.metadata.tables` first-row PKs, and skips routes that need POST or non-HTML responses. Modules can ship an optional `seed.py` with `async def seed(session)` to populate sample records before the screenshot pass — the file is gated on the sandbox-install path like the rest of the module. A fixed-UUID `sandbox-preview@parcel.local` user (`00000000-0000-0000-0000-000000000011`) and `sandbox-preview` builtin role (migration 0009) provide the cookie identity Playwright uses to navigate `/mod-sandbox/<short>/...`; permissions are synced at render-time via `identity.sync_preview_role`, and the user + role are hidden from `/users` and `/roles` (mutations 403). Screenshots land at `var/sandbox/<uuid>/previews/<sha1prefix>_<viewport>.png` with a 30-screenshot cap (10 routes × 3 viewports, alphabetical). Three new HTTP routes — `/sandbox/<id>/previews-fragment` (HTMX poll at 2s, drops polling attrs on terminal status), `/sandbox/<id>/render` (re-enqueue; 409 when already rendering), `/sandbox/<id>/preview-image/<filename>` (filename whitelisted against the JSONB roster). Detail page Alpine.js viewport tab strip with click-through to the live sandbox URL. New CLI: `parcel sandbox previews <uuid>` enqueues a re-render. New setting `PARCEL_PUBLIC_BASE_URL` (default `http://shell:8000`). SDK bumped to `0.10.0`; Contacts bumped to `0.7.0` and ships `seed.py`. Test count: ~450 → ~470.
+**Phase 12 — AI generator feature awareness done.** The Claude generator's system prompt now teaches the model every feature the platform exposes — dashboards, reports, workflows, and `seed.py` — anchored on a worked `support_tickets` reference module embedded inline. Three new tests gate the prompt: a static shape check, a reference-module-passes-the-gate check, and a skipped-by-default live-API integration check. AI-generated modules are pinned to `network`-only capability — `filesystem` / `process` / `raw_sql` are never declared, even when the user's prompt seems to require them (the model emits a `# TODO` comment instead of refusing). Pure prompt rewrite (`generate_module.md` ~350 → ~750 lines) — no SDK / shell / migration changes. Test count: ~513 → 532 (+19, mostly parametrised shape assertions; 1 new skipped placeholder for the live-API test).
 
-Next: **Future** concerns. The workflow-and-module-authoring axis is complete; remaining items (multi-tenancy, OIDC/SAML, module registry, in-browser developer module, non-Python DB) all stay in Future until real users drive prioritisation.
+Next: **Future** concerns. Phase 12 closes the workflow-and-module-authoring axis. Remaining items (multi-tenancy, OIDC/SAML, module registry, in-browser developer module, non-Python DB) all stay in Future until real users drive prioritisation.
 
 ## Locked-in decisions
 
@@ -145,6 +145,9 @@ Next: **Future** concerns. The workflow-and-module-authoring axis is complete; r
 | Sandbox preview UI | Three states (`pending\|rendering\|ready\|failed`), Alpine-driven viewport tab strip, `figure` per route with click-through to `/mod-sandbox/<short>/<path>`. HTMX poll at 2s intervals; polling attributes drop on terminal status. "No seed.py" banner when applicable. |
 | Sandbox preview cap | `MAX_SCREENSHOTS = 30`, route list ordered alphabetically and capped to `10` routes before viewport multiplication. Goto timeout 10s. ARQ `job_timeout=600`. |
 | Sandbox preview settings | `PARCEL_PUBLIC_BASE_URL` (default `http://shell:8000`) is the origin Playwright navigates against. |
+| AI generator system prompt | Embedded `support_tickets` worked reference module + "Feature menu" discipline section. Single ~750-line prompt loaded for every call (no modular loading). Reference compile-checked against the static-analysis gate via `test_ai_prompt_reference_module.py`. |
+| AI feature defaults | `seed.py` always emitted (5–10 records — closes the Phase-11 follow-up). Dashboards default-included when data has obvious aggregations. Reports + workflows only on explicit user request. `Module.preview_routes` never auto-included. |
+| AI capability discipline | `network` added iff `SendEmail` / `CallWebhook` is used. `filesystem` / `process` / `raw_sql` never declared by AI generation — the model writes the module without the blocked feature and leaves a `# TODO` comment for the human reviewer instead of refusing entirely. |
 
 ## Repository layout
 
@@ -205,6 +208,7 @@ contacts = "parcel_mod_contacts:module"
 | 10b-retry | ✅ done | Per-workflow max_retries + exponential backoff (small phase) |
 | 10c | ✅ done | Workflows rich actions (send_email, call_webhook, run_module_function, generate_report) + richer UI |
 | 11 | ✅ done | Sandbox preview enrichment — sample-record seeding, Playwright screenshots, builds on ARQ |
+| 12 | ✅ done | AI generator feature awareness — system prompt teaches dashboards/reports/workflows/seed.py with network-only capability discipline |
 | Future |  | Multi-tenancy · OIDC/SAML · module registry · in-browser developer module · non-Python DB options |
 
 **Every phase is its own brainstorm → plan → implementation cycle.** Do not skip ahead.
@@ -259,6 +263,17 @@ Shipped on the `phase-11-sandbox-previews` branch. See the eight new "Sandbox pr
 - **End-to-end integration test.** `tests/test_previews_integration.py` is a `@pytest.mark.skip` placeholder. Replace with a real Contacts-zip-upload + inline-render flow using the Phase-7a `test_sandbox_service.py` zip-on-the-fly helpers.
 - **Worker-side queued render integration test.** Inline mode is well-tested; the ARQ-queued path relies on Phase 10b's testcontainer-Redis fixture for an integration test that exercises `render_sandbox_previews` through the worker.
 - **Static-analysis gate awareness of preview hooks.** When AI generation is wired through previews, the gate should ensure `seed.py` (if present) imports only `parcel_sdk.*` and that `Module.preview_routes` entries reference real route paths declared by the module's `router`.
+
+### Phase 12 — AI generator feature awareness ✅ shipped
+
+Shipped on the `phase-12-ai-feature-awareness` branch. See the three new "AI generator *" / "AI feature *" / "AI capability *" rows under "Locked-in decisions" for the concrete contracts. Pure prompt rewrite — `packages/parcel-shell/src/parcel_shell/ai/prompts/generate_module.md` grew from ~350 to ~750 lines. The new prompt embeds a complete `support_tickets` worked reference module covering dashboards (Phase 8), reports (Phase 9), workflows (Phase 10), and `seed.py` (Phase 11). A new "Feature menu" discipline section tells the model to always emit `seed.py`, default-include dashboards, and only emit workflows / reports on explicit user request. Capabilities are pinned to `network`-only — `filesystem` / `process` / `raw_sql` are never declared; if the user's prompt seems to require them the model writes the module without that feature and leaves a `# TODO` comment for the reviewer. Three new tests gate the prompt: `test_ai_prompt_shape.py` (static markers), `test_ai_prompt_reference_module.py` (extract reference + run through gate), `test_ai_prompt_live_generation.py` (skipped-by-default live-API integration).
+
+**Known Phase 12 follow-ups (non-blocking, land opportunistically):**
+
+- **Static-gate enforcement of the AI capability rule.** Today the rule is prompt-only. A small gate addition that bans `filesystem` / `process` / `raw_sql` capabilities on AI-generated sandbox installs would close the loop. Prompts can drift; the gate is the source of truth.
+- **Gate awareness of `seed.py`.** Phase 11 left this as a known follow-up. Phase 12 makes `seed.py` ubiquitous, which moves this from "nice-to-have" to "noticeable when it bites."
+- **Multi-turn refinement (Phase 13 candidate).** "Now add a workflow that emails me on new ticket" as a follow-up turn that knows the previous draft. Requires accumulating Claude context across turns + the model reading the current sandbox source.
+- **Mid-turn `ask_user` (Phase 14 candidate).** A new tool-call type that pauses generation, asks the user a clarifying question with options, resumes with the answer in context.
 
 ### Why this ordering
 
