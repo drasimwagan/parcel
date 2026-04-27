@@ -308,3 +308,21 @@ async def test_run_scheduled_workflow_raises_retry_on_error_with_budget(
     ctx = {"sessionmaker": sessionmaker_factory, "app": fake_app, "job_try": 1}
     with pytest.raises(Retry):
         await run_scheduled_workflow(ctx, "demo", "daily")
+
+
+# ---- ARQ registration (Phase 11) -------------------------------------------
+
+
+def test_worker_settings_registers_render_sandbox_previews(monkeypatch) -> None:
+    from parcel_shell.workflows.worker import build_worker_settings
+
+    # Mock discovery to avoid DB connection in test
+    monkeypatch.setattr(
+        "parcel_shell.workflows.worker._discover_active_manifest_sync", lambda s: {}
+    )
+
+    from parcel_shell.config import get_settings
+
+    ws = build_worker_settings(get_settings())
+    func_names = {getattr(f, "__name__", repr(f)) for f in ws.functions}
+    assert "render_sandbox_previews" in func_names

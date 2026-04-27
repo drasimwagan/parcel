@@ -117,7 +117,10 @@ async def users_edit(
     target = await service.get_user(db, user_id)
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    await service.update_user(db, user=target, email=email, is_active=(is_active is not None))
+    try:
+        await service.update_user(db, user=target, email=email, is_active=(is_active is not None))
+    except service.SystemIdentityError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from None
     response = Response(status_code=204)
     set_flash(
         response,
@@ -137,7 +140,10 @@ async def users_delete(
     target = await service.get_user(db, user_id)
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    await service.deactivate_user(db, user=target)
+    try:
+        await service.deactivate_user(db, user=target)
+    except service.SystemIdentityError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from None
     response = Response(status_code=204)
     set_flash(
         response,
@@ -161,7 +167,10 @@ async def users_add_role(
     role = await service.get_role(db, role_id)
     if role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "role_not_found")
-    await service.assign_role_to_user(db, user=target, role=role)
+    try:
+        await service.assign_role_to_user(db, user=target, role=role)
+    except service.SystemIdentityError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from None
     await db.refresh(target, ["roles"])
     all_roles = await service.list_roles(db)
     tpl = get_templates()
@@ -188,7 +197,10 @@ async def users_remove_role(
     role = await service.get_role(db, role_id)
     if target is None or role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
-    await service.unassign_role_from_user(db, user=target, role=role)
+    try:
+        await service.unassign_role_from_user(db, user=target, role=role)
+    except service.SystemIdentityError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from None
     await db.refresh(target, ["roles"])
     all_roles = await service.list_roles(db)
     tpl = get_templates()

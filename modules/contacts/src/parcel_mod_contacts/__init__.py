@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from parcel_mod_contacts import (
+    seed,  # noqa: F401  -- seed_runner discovers via getattr(loaded, "seed")
+)
 from parcel_mod_contacts.dashboards import overview_dashboard
 from parcel_mod_contacts.models import metadata
 from parcel_mod_contacts.reports import directory_report
@@ -17,7 +20,7 @@ from parcel_sdk import Module, Permission
 
 module = Module(
     name="contacts",
-    version="0.6.0",
+    version="0.7.0",
     permissions=(
         Permission("contacts.read", "View contacts and companies"),
         Permission("contacts.write", "Create, update, and delete contacts and companies"),

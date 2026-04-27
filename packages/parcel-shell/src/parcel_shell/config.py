@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     smtp_password: str | None = Field(default=None, alias="PARCEL_SMTP_PASSWORD")
     smtp_from_address: str | None = Field(default=None, alias="PARCEL_SMTP_FROM_ADDRESS")
 
+    # Phase 11 — origin Playwright uses to reach the running shell when
+    # rendering sandbox previews. Default matches the docker-compose service
+    # name. Override to http://localhost:8000 for non-docker dev.
+    public_base_url: str = Field(default="http://shell:8000", alias="PARCEL_PUBLIC_BASE_URL")
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg(cls, v: str) -> str:

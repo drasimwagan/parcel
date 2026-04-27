@@ -71,3 +71,10 @@ async def test_list_permissions(authed_client: AsyncClient) -> None:
     assert r.status_code == 200
     names = {p["name"] for p in r.json()}
     assert "users.read" in names and "permissions.read" in names
+
+
+async def test_roles_list_hides_sandbox_preview(authed_client: AsyncClient) -> None:
+    r = await authed_client.get("/admin/roles")
+    assert r.status_code == 200
+    names = [role["name"] for role in r.json()]
+    assert "sandbox-preview" not in names

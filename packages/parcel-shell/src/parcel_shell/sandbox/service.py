@@ -242,6 +242,19 @@ async def create_sandbox(
         db.add(row)
         await db.flush()
         _log.info("sandbox.created", id=str(sandbox_id), name=name)
+
+        # Phase 11 — kick off preview rendering. Inline-mode short-circuits to
+        # a local task; queued mode pushes onto ARQ.
+        from parcel_shell.sandbox.previews.queue import enqueue as enqueue_preview
+
+        try:
+            await enqueue_preview(sandbox_id, app, settings)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning(
+                "sandbox.preview.enqueue_failed",
+                id=str(sandbox_id),
+                error=str(exc),
+            )
         return row
     except Exception:
         shutil.rmtree(sandbox_root, ignore_errors=True)

@@ -1,0 +1,11 @@
+{# Wraps the section so HTMX swap target id stays stable. #}
+{% set polling = sb.preview_status in ('pending', 'rendering') %}
+<div id="previews-section"
+     {% if polling %}
+     hx-get="/sandbox/{{ sb.id }}/previews-fragment"
+     hx-trigger="every 2s"
+     hx-target="#previews-section"
+     hx-swap="outerHTML"
+     {% endif %}>
+  {% include "sandbox/_previews_section.html" %}
+</div>

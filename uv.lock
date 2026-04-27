@@ -870,7 +870,7 @@ requires-dist = [
 
 [[package]]
 name = "parcel-mod-contacts"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "modules/contacts" }
 dependencies = [
     { name = "fastapi" },
@@ -893,7 +893,7 @@ dev = [{ name = "parcel-shell", editable = "packages/parcel-shell" }]
 
 [[package]]
 name = "parcel-sdk"
-version = "0.4.0"
+version = "0.10.0"
 source = { editable = "packages/parcel-sdk" }
 dependencies = [
     { name = "alembic" },

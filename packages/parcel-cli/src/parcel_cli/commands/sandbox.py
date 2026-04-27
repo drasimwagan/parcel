@@ -197,3 +197,25 @@ async def _prune() -> None:
             count = await sandbox_service.prune_expired(db, fast_app, now=datetime.now(UTC))
             await db.commit()
     typer.echo(f"dismissed {count} expired sandbox(es)")
+
+
+@app.command("previews")
+def previews(uuid_str: str = typer.Argument(..., metavar="UUID")) -> None:
+    """Show preview render status for a sandbox."""
+    asyncio.run(_previews(UUID(uuid_str)))
+
+
+async def _previews(sandbox_id: UUID) -> None:
+    from parcel_shell.sandbox.models import SandboxInstall
+
+    async with with_shell() as fast_app:
+        sessionmaker = fast_app.state.sessionmaker
+        async with sessionmaker() as db:
+            row = await db.get(SandboxInstall, sandbox_id)
+            if row is None:
+                typer.echo(f"sandbox {sandbox_id} not found", err=True)
+                raise typer.Exit(2)
+    ok = sum(1 for e in row.previews if e.get("status") == "ok")
+    err = sum(1 for e in row.previews if e.get("status") == "error")
+    typer.echo(f"sandbox {row.id}: preview_status={row.preview_status} (ok={ok}, error={err})")
+    typer.echo(f"images dir: {row.module_root}/previews")

@@ -112,7 +112,10 @@ async def patch_user(
     u = await service.get_user(db, user_id)
     if u is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    await service.update_user(db, user=u, email=payload.email, is_active=payload.is_active)
+    try:
+        await service.update_user(db, user=u, email=payload.email, is_active=payload.is_active)
+    except service.SystemIdentityError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from e
     return _user_detail(u)
 
 
@@ -125,7 +128,10 @@ async def delete_user(
     u = await service.get_user(db, user_id)
     if u is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user_not_found")
-    await service.deactivate_user(db, user=u)
+    try:
+        await service.deactivate_user(db, user=u)
+    except service.SystemIdentityError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from e
     return Response(status_code=204)
 
 
@@ -142,7 +148,10 @@ async def assign_role(
     role = await service.get_role(db, payload.role_id)
     if role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "role_not_found")
-    await service.assign_role_to_user(db, user=u, role=role)
+    try:
+        await service.assign_role_to_user(db, user=u, role=role)
+    except service.SystemIdentityError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from e
     return Response(status_code=204)
 
 
@@ -159,7 +168,10 @@ async def unassign_role(
     role = await service.get_role(db, role_id)
     if role is None:
         return Response(status_code=204)
-    await service.unassign_role_from_user(db, user=u, role=role)
+    try:
+        await service.unassign_role_from_user(db, user=u, role=role)
+    except service.SystemIdentityError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "system_identity_immutable") from e
     return Response(status_code=204)
 
 

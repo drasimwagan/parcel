@@ -53,3 +53,22 @@ def test_settings_short_secret_rejected_in_prod(monkeypatch: pytest.MonkeyPatch)
         monkeypatch.setenv(k, v)
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_public_base_url_default() -> None:
+    settings = Settings.model_validate(
+        {
+            "PARCEL_SESSION_SECRET": "x" * 32,
+            "DATABASE_URL": "postgresql+asyncpg://x/y",
+            "REDIS_URL": "redis://x:1",
+        }
+    )
+    assert settings.public_base_url == "http://shell:8000"
+
+
+def test_public_base_url_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PARCEL_PUBLIC_BASE_URL", "http://localhost:8000")
+    for k, v in _base_env().items():
+        monkeypatch.setenv(k, v)
+    settings = Settings()
+    assert settings.public_base_url == "http://localhost:8000"

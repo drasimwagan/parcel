@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from sqlalchemy import MetaData  # noqa: F401
 
     from parcel_sdk.dashboards import Dashboard
+    from parcel_sdk.previews import PreviewRoute
     from parcel_sdk.reports import Report
     from parcel_sdk.workflows import Workflow, WorkflowContext
 
@@ -41,3 +42,7 @@ class Module:
     workflow_functions: dict[str, Callable[[WorkflowContext], Awaitable[Any]]] = field(
         default_factory=dict
     )
+    # Phase 11 — optional declared-routes override for the sandbox preview
+    # renderer. When empty (the default), the renderer auto-walks
+    # `module.router.routes`.
+    preview_routes: tuple[PreviewRoute, ...] = ()
