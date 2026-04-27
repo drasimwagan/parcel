@@ -101,7 +101,6 @@ def test_reference_module_passes_gate(tmp_path: Path) -> None:
         p.write_text(body, encoding="utf-8")
     report = run_gate(tmp_path, declared_capabilities=frozenset({"network"}))
     errors = [f for f in report.findings if f.severity == "error"]
-    assert errors == [], (
-        "reference module fails the gate. errors:\n"
-        + "\n".join(f"  {f.rule} @ {f.path}:{f.line} — {f.message}" for f in errors)
+    assert errors == [], "reference module fails the gate. errors:\n" + "\n".join(
+        f"  {f.rule} @ {f.path}:{f.line} — {f.message}" for f in errors
     )

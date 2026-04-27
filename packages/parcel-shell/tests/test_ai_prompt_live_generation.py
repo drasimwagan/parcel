@@ -77,6 +77,4 @@ async def test_generated_module_uses_features_when_asked(committing_admin) -> No
 
     # Forbidden caps must not appear, even if model went off-script.
     for forbidden in ("filesystem", "process", "raw_sql"):
-        assert forbidden not in init_text, (
-            f"AI generator must never declare {forbidden!r}"
-        )
+        assert forbidden not in init_text, f"AI generator must never declare {forbidden!r}"
